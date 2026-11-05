@@ -1,0 +1,50 @@
+package space.wavedot.app.desktop
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
+import org.koin.core.context.startKoin
+import space.wavedot.app.shell.NavigationLayout
+import space.wavedot.app.shell.WavedotApp
+import space.wavedot.app.shell.bootstrap
+import space.wavedot.app.shell.wavedotModules
+import space.wavedot.playback.api.AudioEngine
+import space.wavedot.playback.api.StreamProxy
+import space.wavedot.ui.designsystem.wavedotLogoVector
+import java.awt.Dimension
+
+fun main() {
+    val koin = startKoin { modules(wavedotModules(desktopModule)) }.koin
+    koin.bootstrap()
+    application {
+        val shutdown = {
+            koin.get<AudioEngine>().close()
+            koin.get<StreamProxy>().close()
+            exitApplication()
+        }
+        Window(
+            onCloseRequest = shutdown,
+            title = "Wavedot",
+            undecorated = true,
+            icon = rememberVectorPainter(remember { wavedotLogoVector(Color.White, Color.Black, padding = 12f) }),
+            state = rememberWindowState(width = 1100.dp, height = 760.dp),
+        ) {
+            window.minimumSize = Dimension(720, 480)
+            val controller = remember(window) { WindowController(window) }
+            Box(Modifier.fillMaxSize()) {
+                WavedotApp(
+                    navigationLayout = NavigationLayout.SIDE_RAIL,
+                    titleBar = { WavedotTitleBar(controller, onClose = shutdown) },
+                )
+                WindowResizeEdges(window, controller)
+            }
+        }
+    }
+}

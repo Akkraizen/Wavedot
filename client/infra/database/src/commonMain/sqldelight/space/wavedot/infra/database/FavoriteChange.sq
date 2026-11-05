@@ -1,0 +1,29 @@
+CREATE TABLE favorite_change (
+    source TEXT NOT NULL,
+    media_key TEXT NOT NULL,
+    deleted INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (source, media_key)
+);
+
+selectPending:
+SELECT
+    c.source,
+    c.media_key,
+    c.deleted,
+    c.updated_at,
+    f.title,
+    f.artists,
+    f.album,
+    f.duration_ms,
+    f.artwork_url,
+    f.added_at
+FROM favorite_change c
+LEFT JOIN favorite f ON f.source = c.source AND f.media_key = c.media_key
+ORDER BY c.updated_at;
+
+record:
+INSERT OR REPLACE INTO favorite_change(source, media_key, deleted, updated_at) VALUES (?, ?, ?, ?);
+
+clear:
+DELETE FROM favorite_change WHERE source = ? AND media_key = ? AND updated_at = ?;

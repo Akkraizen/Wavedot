@@ -1,0 +1,16 @@
+FROM eclipse-temurin:25-jdk AS build
+ARG SERVICE
+WORKDIR /src
+COPY . .
+RUN chmod +x gradlew && ./gradlew --no-daemon -Pwavedot.serverOnly=true :server:${SERVICE}:app:installDist
+
+FROM eclipse-temurin:25-jre
+ARG SERVICE
+RUN useradd --system --uid 10001 wavedot \
+    && mkdir -p /var/lib/wavedot/artifacts \
+    && chown -R wavedot /var/lib/wavedot
+WORKDIR /opt/wavedot
+COPY --from=build /src/server/${SERVICE}/app/build/install/wavedot-${SERVICE}/ ./
+ENV SERVICE_BIN=/opt/wavedot/bin/wavedot-${SERVICE}
+USER wavedot
+ENTRYPOINT ["sh", "-c", "exec $SERVICE_BIN"]

@@ -1,0 +1,15 @@
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.kotlin/
+local.properties
+*.iml
+*.iws
+*.ipr
+.idea/
+!.idea/codeStyles/
+out/
+.vscode/
+.DS_Store
+/data/
+/deploy/.env

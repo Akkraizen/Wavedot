@@ -1,0 +1,136 @@
+# Architecture
+
+Wavedot is one Gradle build with three top-level areas: `client/`, `server/` and `shared/`. Both the client and the services follow the same rule: **business logic sits in the middle, depends on nothing platform-specific, and talks to the outside world only through interfaces (ports).** UI, storage, networking and audio are adapters around that core.
+
+```
+              ┌──────────── client ────────────┐        ┌──────────── server ─────────────┐
+ UI           │ feature/*  ui/designsystem     │        │ hub/api        updates/api      │  transport
+              │        │                       │        │    │               │            │
+ domain       │ core/domain ── core/contract   │        │ hub/domain     updates/domain   │  pure Kotlin
+              │        │          │            │        │    │               │            │
+ adapters     │ core/data  infra/*  sources/*  │        │ hub/data       updates/data     │  persistence, IO
+              │            plugins/*           │        │                                 │
+ wiring       │ app/shell  app/android  app/desktop    │ hub/app        updates/app      │  DI, main()
+              └───────────────┬────────────────┘        └────────────────┬────────────────┘
+                              └───────────── shared/protocol-* ──────────┘
+```
+
+## Client
+
+All client modules are Kotlin Multiplatform with `jvm` (desktop) and Android targets. Code that both JVM-based targets can use goes into the `jvmShared` source set (javax.crypto, `java.io.File`, Ktor server). `commonMain` stays free of JVM APIs so an iOS target can be added later.
+
+### Core
+
+| Module | Package | Responsibility |
+|---|---|---|
+| `core/model` | `space.wavedot.core.model` | Immutable entities: `Track`, `Album`, `Artist`, `Playlist`, `MediaId`, `Page`, `AudioQuality`, plus stream descriptors (`StreamSource`, `ByteStream`) |
+| `core/common` | `space.wavedot.core.common` | Errors (`WavedotError`, `WavedotException`), `Logger`, `DispatcherProvider`, `TimeProvider`, `KeyValueStore` |
+| `core/contract` | `space.wavedot.core.contract` | **The single data contract**: `MediaSource`, `Catalog`, `Search`, `Streaming`, `RemoteLibrary`, `EntityProvider<T>`, `PagedQuery<Q, T>`, `MediaSourceRegistry` |
+| `core/plugin-api` | `space.wavedot.plugin.api` | The plugin SDK: `WavedotPlugin`, `PluginManifest`, `PluginContext`, `PluginStore`, HTTP byte-stream helper |
+| `core/playback-api` | `space.wavedot.playback.api` | Low-level playback ports: `AudioEngine`, `EngineState`, `StreamProxy` |
+| `core/domain` | `space.wavedot.core.domain` | Use cases and player logic: `PlayerController`, `PlaybackQueue`, `ResolveStream`, `SearchTracks`, `ToggleFavorite`, `SyncLibrary`, `CheckForUpdates`; ports `FavoritesRepository`, `LocalLibrary`, `SyncGateway`, `SyncStateStore`, `UpdateChecker` |
+| `core/data` | `space.wavedot.core.data` | `DefaultMediaSourceRegistry`, `PluginManager`, the plugin context factory |
+| `core/testing` | `space.wavedot.core.testing` | Fakes (`FakeAudioEngine`, `FakeMediaSource`, `InMemoryFavoritesRepository`, `TestRegistry`) and `MediaSourceContractTest` |
+
+### The single data contract
+
+Every source (local files, Yandex Music, future Spotify or YouTube) is a `MediaSource`. A source exposes optional capabilities, and all of them return the same model types:
+
+```kotlin
+interface MediaSource {
+    val descriptor: SourceDescriptor
+    val catalog: Catalog?        // EntityProvider<Track/Album/Artist/Playlist>
+    val search: Search?          // PagedQuery<SearchQuery, T>
+    val streaming: Streaming?    // resolve(MediaId, AudioQuality) -> StreamSource
+    val library: RemoteLibrary?  // liked tracks, like/unlike
+}
+```
+
+- Every entity is addressed by `MediaId(source, key)`. The source part routes a request to the right `MediaSource` through the `MediaSourceRegistry`.
+- Lists are always `Page<T>` with an opaque `Cursor`, whatever paging scheme the backend uses (offsets, page numbers, tokens).
+- `StreamSource` describes how to get audio without saying how to play it. It is one of three kinds:
+  - `LocalFile`: a path or `content://` URI.
+  - `Remote`: a URL plus headers.
+  - `Custom`: a seekable `ByteStreamOpener`, used for decrypted and generated streams.
+
+Every source implementation must pass `MediaSourceContractTest`.
+
+### Playback
+
+`AudioEngine` is the only thing the domain knows about audio. The adapters are:
+
+- **Desktop** (`infra/playback-desktop`): `FfmpegAudioEngine`, built from two parts:
+  - `FfmpegDecoder` demuxes, decodes and resamples to S16 PCM through the FFmpeg C API (JavaCPP presets). Formats: FLAC, MP3, AAC, ALAC, Opus, WAV, plus FLAC/AAC in MP4.
+  - An `AudioOutput` plays the PCM. It is currently `JavaSoundOutput`. Volume is applied in software, and position is derived from the frames actually played.
+- **Android** (`infra/playback-android`): `Media3AudioEngine` on ExoPlayer, plus `WavedotPlaybackService` (a `MediaSessionService`) for the notification, lock screen and Bluetooth controls.
+
+`StreamSource.Custom` streams reach either engine through `infra/stream-proxy`. `LoopbackStreamProxy` is a small Ktor server on `127.0.0.1`. It publishes each custom stream under a random URL and supports `Range`, so seeking works for every engine without engine-specific integration.
+
+### Infrastructure and sources
+
+| Module | Role |
+|---|---|
+| `infra/database` | SQLDelight schema: favorites, the pending change log for sync, and the sync revision. Implements `FavoritesRepository` and `SyncStateStore` |
+| `infra/storage` | `FileKeyValueStore`, used for settings and plugin secrets |
+| `infra/network` | `createHttpClient` and `defaultHttpClient` (Ktor with OkHttp) |
+| `infra/stream-proxy` | `LoopbackStreamProxy` |
+| `infra/hub-client` | `HubClient`, which implements `SyncGateway` over `protocol-hub`, and `HubSettings` |
+| `infra/updater` | `HttpUpdateChecker`, which implements `UpdateChecker`, and `UpdateDownloader` (SHA-256 verified) |
+| `sources/local` | `LocalMediaSource`, with `FileSystemTrackScanner` (desktop, jaudiotagger) and `MediaStoreTrackScanner` (Android) |
+| `plugins/yandex-music` | The built-in Yandex Music plugin. See [PLUGINS.md](PLUGINS.md) |
+
+### UI
+
+- `ui/designsystem` holds the theme and shared components.
+- Each `feature/*` module has a `ViewModel` that exposes a `StateFlow<UiState>` and accepts `Intent`s (MVI), plus stateless composables.
+- Features depend only on `core/domain` and on ports they declare themselves. For example, `SettingsBackend` lets the settings screen stay free of plugin and hub internals.
+- `app/shell` is the composition root shared by both apps. It contains the Koin modules (`wavedotModules(platformModule)`), `bootstrap()`, the adapters that implement feature ports, and `WavedotApp()`.
+- `app/android` and `app/desktop` only provide the platform module: the engine, database driver, storage locations and scanner.
+
+### Data flow: playing a Yandex Music track
+
+1. `SearchViewModel` calls `SearchTracks`, which fans out to every `Search` capability. Each source's results are reported separately, so a failing source does not hide the others.
+2. A tap calls `PlayerController.play(tracks, index)`. `PlaybackQueue` is pure and immutable.
+3. `ResolveStream` picks the best supported quality and calls `Streaming.resolve` on the track's source.
+4. The Yandex plugin signs `get-file-info` and returns `StreamSource.Custom` with an `EncryptedStreamOpener`.
+5. The engine turns it into a loopback URL. Each request runs the following chain:
+
+   ```
+   Range request → aligned HTTP range to the CDN → AES-CTR decryption from that block → PCM
+   ```
+6. When the engine reports `ENDED`, `PlayerController` advances the queue.
+
+## Server
+
+Each service is split into the same four layers:
+
+| Layer | Depends on | Contents |
+|---|---|---|
+| `domain` | `common/kernel` only | Entities, use cases, repository ports. No Ktor, no Exposed |
+| `data` | `domain`, `common/persistence` | Exposed tables and repositories, Flyway migrations (`db/migration/<service>`), storage adapters |
+| `api` | `domain`, `common/ktor`, `shared/protocol-*` | Ktor routes, authentication, DTO ↔ domain mapping |
+| `app` | everything above | `main()`, configuration (Hoplite YAML + environment), Koin wiring |
+
+The shared server modules are:
+
+- `common/kernel`: `AppError`, `TransactionRunner`, `IdGenerator`.
+- `common/config`: typed configuration loading.
+- `common/ktor`: JSON, `ProblemDetails` error mapping, call IDs, health endpoints, bearer authentication.
+- `common/persistence`: Hikari, Flyway, `ExposedTransactionRunner`.
+- `common/testing`: H2 test database and a mutable clock.
+
+See [SERVER.md](SERVER.md) for each service's behavior.
+
+## Testing strategy
+
+- **Domain logic** (queue, player controller, search aggregation, sync, release resolution) is tested in `commonTest` or plain JVM tests against fakes. No IO.
+- **Contract tests**: every `MediaSource` extends `MediaSourceContractTest`.
+- **Adapters** are tested against their real dependency:
+  - SQLDelight runs on in-memory SQLite.
+  - Exposed runs on H2 in PostgreSQL mode.
+  - FFmpeg decodes generated WAV files.
+  - The stream proxy serves real HTTP on loopback.
+  - Ktor clients use `MockEngine`.
+  - Ktor servers use `testApplication`.
+- **The Yandex Music plugin** is tested in two ways: the request signature is checked against the reference Python implementation, and decryption is checked at arbitrary byte offsets.
+- **Koin wiring** is checked by `ModuleGraphTest` in `app/shell`.

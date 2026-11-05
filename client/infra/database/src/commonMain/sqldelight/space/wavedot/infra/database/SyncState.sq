@@ -1,0 +1,10 @@
+CREATE TABLE sync_state (
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
+    last_revision INTEGER NOT NULL
+);
+
+selectRevision:
+SELECT last_revision FROM sync_state WHERE id = 1;
+
+saveRevision:
+INSERT OR REPLACE INTO sync_state(id, last_revision) VALUES (1, ?);

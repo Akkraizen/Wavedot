@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: wavedot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wavedot}
+      POSTGRES_DB: wavedot_hub
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wavedot"]
+      interval: 5s
+      retries: 10
+
+  hub:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE: hub
+    environment:
+      HUB_DATABASE_URL: jdbc:postgresql://postgres:5432/wavedot_hub
+      HUB_DATABASE_USER: wavedot
+      HUB_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-wavedot}
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  updates:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE: updates
+    environment:
+      UPDATES_DATABASE_URL: jdbc:postgresql://postgres:5432/wavedot_updates
+      UPDATES_DATABASE_USER: wavedot
+      UPDATES_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-wavedot}
+      UPDATES_STORAGE_ROOT: /var/lib/wavedot/artifacts
+      UPDATES_ADMIN_TOKEN: ${UPDATES_ADMIN_TOKEN:?set UPDATES_ADMIN_TOKEN in deploy/.env}
+    volumes:
+      - artifacts:/var/lib/wavedot/artifacts
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  artifacts:

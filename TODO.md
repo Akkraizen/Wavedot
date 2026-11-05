@@ -1,0 +1,64 @@
+# TODO
+
+## Sources (plugins)
+
+- [ ] **Spotify**: catalog, search, liked songs and playlists through the Web API. Playback options need research (Spotify Connect or a licensed SDK), because the Web API does not expose audio streams.
+- [ ] **YouTube / YouTube Music**: search, library and playlists; audio stream resolution.
+- [ ] **SoundCloud**: search, likes and stream resolution.
+- [ ] **Subsonic / Navidrome / Jellyfin**: self-hosted libraries.
+- [ ] **Internet radio**: Icecast/Shoutcast stations and ICY metadata.
+- [ ] Yandex Music: albums, artists, playlists, "My Wave" radio, lyrics.
+- [ ] Yandex Music: OAuth device flow in Settings instead of pasting a token.
+- [ ] Load plugins at runtime from JARs (desktop: `ServiceLoader` and an isolated class loader), with signature checks.
+
+## Library and core features
+
+- [ ] Favorites: two-way sync with each source's likes. Today, likes are imported and local toggles are mirrored, but removals made on the remote side are not detected.
+- [ ] Cross-source matching: resolve the same track across sources (ISRC, title/artist/duration).
+- [ ] Playlists: local playlists, playlists imported from sources, sync through the hub.
+- [ ] Listening history and statistics, synced through the hub (`history` collection).
+- [ ] Persist the local file index in the database instead of rescanning on every start; watch folders for changes.
+- [ ] Artwork loading and caching (Coil 3), and embedded cover extraction for local files.
+- [ ] Offline cache for streamed tracks.
+- [ ] Persist and restore the queue and playback position between launches.
+- [ ] Search: albums, artists and playlists; per-source filters; search history.
+
+## Playback
+
+- [ ] Desktop: replace the JavaSound output with a WASAPI or miniaudio backend called through the FFM API (lower latency, exclusive mode, device selection).
+- [ ] Desktop: generate FFmpeg bindings with jextract (FFM) instead of the JNI presets, and ship only the native libraries for the target platform.
+- [ ] Gapless playback and crossfade (pre-open the next decoder).
+- [ ] Equalizer and ReplayGain in the desktop DSP chain.
+- [ ] Android: wrap the session player in a `ForwardingPlayer` so notification and Bluetooth controls drive `PlayerController` (next, previous, queue).
+- [ ] Desktop media keys and OS integration: Windows SMTC, MPRIS on Linux, macOS Now Playing.
+- [ ] Lyrics (LRC) with synced display.
+- [ ] Scrobbling (Last.fm, ListenBrainz).
+
+## Sync and accounts (hub)
+
+- [ ] Pair additional devices to an existing account (pairing code or QR).
+- [ ] Use the WebSocket revision events on the client to trigger sync automatically.
+- [ ] Settings sync (`settings` collection) and playlist sync (`playlists` collection).
+- [ ] Optional end-to-end encryption of payloads.
+- [ ] Rate limiting and an audit log.
+- [ ] Testcontainers-based PostgreSQL tests next to the H2 ones.
+
+## Updates
+
+- [ ] Sign artifacts (Ed25519) and verify signatures in the client in addition to SHA-256.
+- [ ] Install flow: Android package installer, Windows MSI/EXE handoff, Linux packages.
+- [ ] S3-compatible `ArtifactStorage` implementation.
+- [ ] Release notes rendering and a "what's new" screen.
+- [ ] CI pipeline that publishes builds to the updates service.
+
+## Platforms and security
+
+- [ ] iOS target (Compose Multiplatform, AVAudioEngine-based `AudioEngine`, MediaPlayer integration).
+- [ ] Secure secret storage: Windows DPAPI or Credential Manager, Android Keystore, libsecret, macOS Keychain.
+- [ ] Desktop installer polish: icons, file associations, auto-start option.
+
+## Engineering
+
+- [ ] CI: build, tests, Android lint, desktop packaging.
+- [ ] Static analysis (detekt, ktlint) and dependency update checks.
+- [ ] UI tests for the Compose screens.

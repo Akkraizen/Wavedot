@@ -1,0 +1,29 @@
+CREATE TABLE favorite (
+    source TEXT NOT NULL,
+    media_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    artists TEXT NOT NULL,
+    album TEXT,
+    duration_ms INTEGER,
+    artwork_url TEXT,
+    added_at INTEGER NOT NULL,
+    PRIMARY KEY (source, media_key)
+);
+
+CREATE INDEX favorite_added_at ON favorite(added_at);
+
+selectAll:
+SELECT * FROM favorite ORDER BY added_at DESC;
+
+selectIds:
+SELECT source, media_key FROM favorite;
+
+exists:
+SELECT COUNT(*) FROM favorite WHERE source = ? AND media_key = ?;
+
+upsert:
+INSERT OR REPLACE INTO favorite(source, media_key, title, artists, album, duration_ms, artwork_url, added_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+delete:
+DELETE FROM favorite WHERE source = ? AND media_key = ?;

@@ -1,0 +1,8 @@
+server:
+  host: ${HUB_HOST:-0.0.0.0}
+  port: ${HUB_PORT:-8081}
+database:
+  url: ${HUB_DATABASE_URL:-jdbc:postgresql://localhost:5432/wavedot_hub}
+  user: ${HUB_DATABASE_USER:-wavedot}
+  password: ${HUB_DATABASE_PASSWORD:-wavedot}
+  maxPoolSize: ${HUB_DATABASE_POOL:-10}

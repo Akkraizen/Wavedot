@@ -60,6 +60,10 @@ class ModuleGraphTest {
     fun graphResolvesAndBootstraps() = runBlocking {
         val koin = koinApplication { modules(wavedotModules(testPlatform)) }.koin
         koin.get<SettingsBackend>()
+        koin.get<space.wavedot.feature.player.PlayerViewModel>()
+        koin.get<space.wavedot.feature.library.LibraryViewModel>()
+        koin.get<space.wavedot.feature.search.SearchViewModel>()
+        koin.get<space.wavedot.feature.settings.SettingsViewModel>()
         koin.bootstrap()
         val manager = koin.get<PluginManager>()
         val entry = withTimeout(5_000) { manager.entries.first { list -> list.all { it.status != PluginStatus.Unloaded } } }.single()

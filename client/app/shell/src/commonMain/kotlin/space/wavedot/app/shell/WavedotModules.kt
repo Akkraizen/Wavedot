@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
@@ -105,7 +106,7 @@ val coreModule: Module = module {
 val viewModelModule: Module = module {
     viewModelOf(::PlayerViewModel)
     viewModelOf(::LibraryViewModel)
-    viewModelOf(::SearchViewModel)
+    viewModel { SearchViewModel(get(), get(), get(), get()) }
     viewModelOf(::SettingsViewModel)
 }
 

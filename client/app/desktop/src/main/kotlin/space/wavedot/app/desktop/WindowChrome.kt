@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.clickable
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -102,7 +101,7 @@ fun WindowScope.WavedotTitleBar(controller: WindowController, onClose: () -> Uni
         Modifier
             .fillMaxWidth()
             .height(TitleBarHeight)
-            .background(MaterialTheme.colorScheme.surface),
+            .background(MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -112,7 +111,7 @@ fun WindowScope.WavedotTitleBar(controller: WindowController, onClose: () -> Uni
                     .windowDrag(controller),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                WavedotMark(Modifier.padding(start = 14.dp))
+                WavedotMark(Modifier.padding(start = 18.dp), logoSize = 22.dp)
             }
             WindowButton(onClick = controller::minimize) { color -> MinimizeGlyph(color) }
             WindowButton(onClick = controller::toggleMaximize) { color ->
@@ -120,7 +119,6 @@ fun WindowScope.WavedotTitleBar(controller: WindowController, onClose: () -> Uni
             }
             WindowButton(onClick = onClose, hoverColor = CloseHover, hoverContent = Color.White) { color -> CloseGlyph(color) }
         }
-        HorizontalDivider(Modifier.align(Alignment.BottomCenter), color = MaterialTheme.colorScheme.surfaceVariant)
     }
 }
 
@@ -147,7 +145,7 @@ private fun Modifier.windowDrag(controller: WindowController): Modifier = this
 @Composable
 private fun WindowButton(
     onClick: () -> Unit,
-    hoverColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    hoverColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
     hoverContent: Color = MaterialTheme.colorScheme.onSurface,
     glyph: @Composable BoxScope.(Color) -> Unit,
 ) {

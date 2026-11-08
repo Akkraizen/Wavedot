@@ -10,6 +10,10 @@ class KmpComposeConventionPlugin : Plugin<Project> {
         pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
 
         extensions.configure<KotlinMultiplatformExtension> {
+            sourceSets.configureEach {
+                languageSettings.optIn("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")
+                languageSettings.optIn("androidx.compose.material3.ExperimentalMaterial3Api")
+            }
             sourceSets.getByName("commonMain").dependencies {
                 implementation("org.jetbrains.compose.runtime:runtime:${libs.version("compose-multiplatform")}")
                 implementation("org.jetbrains.compose.foundation:foundation:${libs.version("compose-multiplatform")}")

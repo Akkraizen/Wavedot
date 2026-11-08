@@ -67,6 +67,7 @@ fun MiniPlayer(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, onExpand:
             ) {
                 Artwork(
                     seed = track.album?.title ?: track.title,
+            url = track.artwork?.url,
                     size = 48.dp,
                     shape = MaterialShapes.Cookie9Sided.toShape(),
                     spinning = state.isPlaying,
@@ -100,6 +101,7 @@ fun PlayerBar(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, onExpand: 
             ) {
                 Artwork(
                     seed = track.album?.title ?: track.title,
+            url = track.artwork?.url,
                     size = 64.dp,
                     shape = MaterialShapes.Cookie9Sided.toShape(),
                     spinning = state.isPlaying,
@@ -167,6 +169,7 @@ private fun NowPlayingHero(state: PlayerUiState, onIntent: (PlayerIntent) -> Uni
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Artwork(
             seed = track.album?.title ?: track.title,
+            url = track.artwork?.url,
             size = 280.dp,
             shape = MaterialShapes.Cookie12Sided.toShape(),
             spinning = state.isPlaying,

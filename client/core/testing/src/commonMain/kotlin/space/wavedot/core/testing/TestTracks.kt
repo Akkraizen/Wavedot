@@ -1,5 +1,6 @@
 package space.wavedot.core.testing
 
+import space.wavedot.core.model.AlbumRef
 import space.wavedot.core.model.ArtistRef
 import space.wavedot.core.model.MediaId
 import space.wavedot.core.model.SourceId
@@ -17,4 +18,12 @@ object TestTracks {
     )
 
     fun tracks(count: Int, source: SourceId = SOURCE): List<Track> = (1..count).map { track("$it", source = source) }
+
+    fun albumTrack(key: String, album: String, artist: String, source: SourceId = SOURCE): Track = Track(
+        id = MediaId(source, key),
+        title = "Track $key",
+        artists = listOf(ArtistRef(MediaId(source, "artist/$artist"), artist)),
+        album = AlbumRef(MediaId(source, "album/$album"), album),
+        duration = 180.seconds,
+    )
 }

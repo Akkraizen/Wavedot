@@ -2,7 +2,10 @@ package space.wavedot.feature.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -10,70 +13,139 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import space.wavedot.core.common.toWavedotError
 import space.wavedot.core.domain.library.FavoritesRepository
 import space.wavedot.core.domain.library.ToggleFavorite
 import space.wavedot.core.domain.player.PlayerController
-import space.wavedot.core.domain.search.SearchTracks
+import space.wavedot.core.domain.search.LoadCollection
+import space.wavedot.core.domain.search.SearchCatalog
+import space.wavedot.core.domain.search.SearchScope
 import space.wavedot.core.domain.search.SourceSearchResult
+import space.wavedot.core.model.Album
+import space.wavedot.core.model.Artist
+import space.wavedot.core.model.EntityKind
 import space.wavedot.core.model.MediaId
 import space.wavedot.core.model.Track
 
+data class CollectionUi(
+    val id: MediaId,
+    val kind: EntityKind,
+    val title: String,
+    val subtitle: String?,
+    val artworkUrl: String?,
+    val tracks: List<Track> = emptyList(),
+    val loading: Boolean = true,
+    val error: String? = null,
+)
+
 data class SearchUiState(
     val query: String = "",
+    val scope: SearchScope = SearchScope.ALL,
     val loading: Boolean = false,
     val results: List<SourceSearchResult> = emptyList(),
     val favoriteIds: Set<MediaId> = emptySet(),
     val playingId: MediaId? = null,
+    val collection: CollectionUi? = null,
 )
 
 sealed interface SearchIntent {
     data class QueryChanged(val query: String) : SearchIntent
-    data class Play(val source: SourceSearchResult, val index: Int) : SearchIntent
+    data class ScopeChanged(val scope: SearchScope) : SearchIntent
+    data class Play(val tracks: List<Track>, val index: Int) : SearchIntent
     data class ToggleFavorite(val track: Track) : SearchIntent
     data class PlayNext(val track: Track) : SearchIntent
+    data class OpenAlbum(val album: Album) : SearchIntent
+    data class OpenArtist(val artist: Artist) : SearchIntent
+    data object CloseCollection : SearchIntent
+    data class PlayCollection(val shuffle: Boolean) : SearchIntent
 }
 
-@OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SearchViewModel(
-    private val search: SearchTracks,
+    private val search: SearchCatalog,
+    private val loadCollection: LoadCollection,
     favorites: FavoritesRepository,
     private val player: PlayerController,
     private val toggleFavorite: ToggleFavorite,
     debounceMillis: Long = 350,
 ) : ViewModel() {
-    private val query = MutableStateFlow("")
-    private val loading = MutableStateFlow(false)
-    private val results = MutableStateFlow<List<SourceSearchResult>>(emptyList())
+    private val local = MutableStateFlow(SearchUiState())
+    private var collectionJob: Job? = null
 
-    val state: StateFlow<SearchUiState> = combine(
-        query, loading, results, favorites.observeIds(), player.state,
-    ) { q, isLoading, found, ids, playerState ->
-        SearchUiState(q, isLoading, found, ids, playerState.current?.id)
+    val state: StateFlow<SearchUiState> = combine(local, favorites.observeIds(), player.state) { current, ids, playerState ->
+        current.copy(favoriteIds = ids, playingId = playerState.current?.id)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchUiState())
 
     init {
-        query
-            .debounce(debounceMillis)
+        local
+            .map { it.query.trim() to it.scope }
             .distinctUntilChanged()
-            .onEach { loading.value = it.isNotBlank() }
-            .mapLatest { if (it.isBlank()) emptyList() else search(it) }
-            .onEach {
-                results.value = it
-                loading.value = false
-            }
+            .debounce(debounceMillis)
+            .onEach { (query, _) -> local.update { it.copy(loading = query.isNotEmpty()) } }
+            .mapLatest { (query, scope) -> if (query.isEmpty()) emptyList() else search(query, scope) }
+            .onEach { results -> local.update { it.copy(results = results, loading = false) } }
             .launchIn(viewModelScope)
     }
 
     fun onIntent(intent: SearchIntent) {
         when (intent) {
-            is SearchIntent.QueryChanged -> query.value = intent.query
-            is SearchIntent.Play -> player.play(intent.source.page.items, intent.index)
+            is SearchIntent.QueryChanged -> local.update { it.copy(query = intent.query) }
+            is SearchIntent.ScopeChanged -> local.update { it.copy(scope = intent.scope) }
+            is SearchIntent.Play -> player.play(intent.tracks, intent.index)
             is SearchIntent.ToggleFavorite -> viewModelScope.launch { toggleFavorite(intent.track) }
             is SearchIntent.PlayNext -> player.playNext(intent.track)
+            is SearchIntent.OpenAlbum -> open(
+                CollectionUi(
+                    id = intent.album.id,
+                    kind = EntityKind.ALBUM,
+                    title = intent.album.title,
+                    subtitle = listOfNotNull(intent.album.artists.firstOrNull()?.name, intent.album.year?.toString())
+                        .joinToString(" · ")
+                        .ifEmpty { null },
+                    artworkUrl = intent.album.artwork?.url,
+                ),
+            )
+            is SearchIntent.OpenArtist -> open(
+                CollectionUi(
+                    id = intent.artist.id,
+                    kind = EntityKind.ARTIST,
+                    title = intent.artist.name,
+                    subtitle = null,
+                    artworkUrl = intent.artist.artwork?.url,
+                ),
+            )
+            SearchIntent.CloseCollection -> {
+                collectionJob?.cancel()
+                local.update { it.copy(collection = null) }
+            }
+            is SearchIntent.PlayCollection -> {
+                val tracks = local.value.collection?.tracks.orEmpty()
+                if (tracks.isNotEmpty()) {
+                    player.setShuffle(intent.shuffle)
+                    player.play(tracks, 0)
+                }
+            }
+        }
+    }
+
+    private fun open(collection: CollectionUi) {
+        collectionJob?.cancel()
+        local.update { it.copy(collection = collection) }
+        collectionJob = viewModelScope.launch {
+            val loaded = try {
+                collection.copy(tracks = loadCollection(collection.id, collection.kind), loading = false)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                collection.copy(loading = false, error = t.toWavedotError().message)
+            }
+            local.update { current -> if (current.collection?.id == collection.id) current.copy(collection = loaded) else current }
         }
     }
 }

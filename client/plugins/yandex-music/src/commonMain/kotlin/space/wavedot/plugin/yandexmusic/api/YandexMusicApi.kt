@@ -43,16 +43,31 @@ internal class YandexMusicApi(
         })
     }
 
-    suspend fun search(text: String, page: Int): YmSearchSection<YmTrack> {
-        val result: YmSearch = get("/search") {
+    suspend fun search(text: String, page: Int): YmSearchSection<YmTrack> =
+        search(text, "track", page).tracks ?: YmSearchSection()
+
+    suspend fun searchAlbums(text: String, page: Int): YmSearchSection<YmAlbum> =
+        search(text, "album", page).albums ?: YmSearchSection()
+
+    suspend fun searchArtists(text: String, page: Int): YmSearchSection<YmArtist> =
+        search(text, "artist", page).artists ?: YmSearchSection()
+
+    suspend fun albumWithTracks(albumId: String): YmAlbum = get("/albums/$albumId/with-tracks")
+
+    suspend fun artistTracks(artistId: String, page: Int, pageSize: Int): YmArtistTracks =
+        get("/artists/$artistId/tracks") {
+            parameter("page", page)
+            parameter("page-size", pageSize)
+        }
+
+    private suspend fun search(text: String, type: String, page: Int): YmSearch =
+        get("/search") {
             parameter("text", text)
             parameter("nocorrect", "False")
-            parameter("type", "track")
+            parameter("type", type)
             parameter("page", page)
             parameter("playlist-in-best", "False")
         }
-        return result.tracks ?: YmSearchSection()
-    }
 
     suspend fun likedTrackIds(): List<YmTrackShort> {
         val uid = accountUid()

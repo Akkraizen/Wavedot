@@ -28,7 +28,7 @@ All client modules are Kotlin Multiplatform with `jvm` (desktop) and Android tar
 | `core/contract` | `space.wavedot.core.contract` | **The single data contract**: `MediaSource`, `Catalog`, `Search`, `Streaming`, `RemoteLibrary`, `EntityProvider<T>`, `PagedQuery<Q, T>`, `MediaSourceRegistry` |
 | `core/plugin-api` | `space.wavedot.plugin.api` | The plugin SDK: `WavedotPlugin`, `PluginManifest`, `PluginContext`, `PluginStore`, HTTP byte-stream helper |
 | `core/playback-api` | `space.wavedot.playback.api` | Low-level playback ports: `AudioEngine`, `EngineState`, `StreamProxy` |
-| `core/domain` | `space.wavedot.core.domain` | Use cases and player logic: `PlayerController`, `PlaybackQueue`, `ResolveStream`, `SearchTracks`, `ToggleFavorite`, `SyncLibrary`, `CheckForUpdates`; ports `FavoritesRepository`, `LocalLibrary`, `SyncGateway`, `SyncStateStore`, `UpdateChecker` |
+| `core/domain` | `space.wavedot.core.domain` | Use cases and player logic: `PlayerController`, `PlaybackQueue`, `ResolveStream`, `SearchCatalog`, `LoadCollection`, `ToggleFavorite`, `SyncLibrary`, `CheckForUpdates`; ports `FavoritesRepository`, `LocalLibrary`, `SyncGateway`, `SyncStateStore`, `UpdateChecker` |
 | `core/data` | `space.wavedot.core.data` | `DefaultMediaSourceRegistry`, `PluginManager`, the plugin context factory |
 | `core/testing` | `space.wavedot.core.testing` | Fakes (`FakeAudioEngine`, `FakeMediaSource`, `InMemoryFavoritesRepository`, `TestRegistry`) and `MediaSourceContractTest` |
 
@@ -81,7 +81,7 @@ Every source implementation must pass `MediaSourceContractTest`.
 
 ### UI
 
-- `ui/designsystem` holds the theme and shared components.
+- `ui/designsystem` holds the Material 3 Expressive theme, icons and shared components. Artwork is loaded with Coil 3: remote URLs go through the app's Ktor client, local covers are plain file paths, and the image loader is installed by `app/shell` with a disk cache in the platform cache directory.
 - Each `feature/*` module has a `ViewModel` that exposes a `StateFlow<UiState>` and accepts `Intent`s (MVI), plus stateless composables.
 - Features depend only on `core/domain` and on ports they declare themselves. For example, `SettingsBackend` lets the settings screen stay free of plugin and hub internals.
 - `app/shell` is the composition root shared by both apps. It contains the Koin modules (`wavedotModules(platformModule)`), `bootstrap()`, the adapters that implement feature ports, and `WavedotApp()`.
@@ -89,7 +89,7 @@ Every source implementation must pass `MediaSourceContractTest`.
 
 ### Data flow: playing a Yandex Music track
 
-1. `SearchViewModel` calls `SearchTracks`, which fans out to every `Search` capability. Each source's results are reported separately, so a failing source does not hide the others.
+1. `SearchViewModel` calls `SearchCatalog`, which fans out to every `Search` capability (tracks, albums and artists, depending on the selected scope). Each source's results are reported separately, so a failing source does not hide the others.
 2. A tap calls `PlayerController.play(tracks, index)`. `PlaybackQueue` is pure and immutable.
 3. `ResolveStream` picks the best supported quality and calls `Streaming.resolve` on the track's source.
 4. The Yandex plugin signs `get-file-info` and returns `StreamSource.Custom` with an `EncryptedStreamOpener`.

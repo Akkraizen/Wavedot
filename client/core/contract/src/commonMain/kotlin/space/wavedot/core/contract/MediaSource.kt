@@ -33,6 +33,7 @@ interface Catalog {
     val playlists: EntityProvider<Playlist>? get() = null
     val albumTracks: PagedQuery<MediaId, Track>? get() = null
     val playlistTracks: PagedQuery<MediaId, Track>? get() = null
+    val artistTracks: PagedQuery<MediaId, Track>? get() = null
 }
 
 data class SearchQuery(

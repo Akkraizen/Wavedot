@@ -10,6 +10,8 @@ import space.wavedot.core.contract.SearchQuery
 import space.wavedot.core.contract.SourceDescriptor
 import space.wavedot.core.contract.SourceKind
 import space.wavedot.core.contract.Streaming
+import space.wavedot.core.model.Album
+import space.wavedot.core.model.Artist
 import space.wavedot.core.model.AudioQuality
 import space.wavedot.core.model.Cursor
 import space.wavedot.core.model.MediaId
@@ -34,6 +36,16 @@ class FakeMediaSource(
         override val tracks: EntityProvider<Track> = object : EntityProvider<Track> {
             override suspend fun get(id: MediaId): Track? = this@FakeMediaSource.tracks.firstOrNull { it.id == id }
         }
+
+        override val albumTracks: PagedQuery<MediaId, Track> = object : PagedQuery<MediaId, Track> {
+            override suspend fun page(query: MediaId, cursor: Cursor?, limit: Int): Page<Track> =
+                pageOf(this@FakeMediaSource.tracks.filter { it.album?.id == query }, cursor, limit)
+        }
+
+        override val artistTracks: PagedQuery<MediaId, Track> = object : PagedQuery<MediaId, Track> {
+            override suspend fun page(query: MediaId, cursor: Cursor?, limit: Int): Page<Track> =
+                pageOf(this@FakeMediaSource.tracks.filter { track -> track.artists.any { it.id == query } }, cursor, limit)
+        }
     }
 
     override val search: Search = object : Search {
@@ -42,6 +54,29 @@ class FakeMediaSource(
                 searchFailure?.let { throw it }
                 val matches = this@FakeMediaSource.tracks.filter { it.title.contains(query.text, ignoreCase = true) }
                 return pageOf(matches, cursor, limit)
+            }
+        }
+
+        override val albums: PagedQuery<SearchQuery, Album> = object : PagedQuery<SearchQuery, Album> {
+            override suspend fun page(query: SearchQuery, cursor: Cursor?, limit: Int): Page<Album> {
+                searchFailure?.let { throw it }
+                val albums = this@FakeMediaSource.tracks
+                    .mapNotNull { track -> track.album?.let { ref -> ref.id?.let { Album(it, ref.title, track.artists) } } }
+                    .distinctBy { it.id }
+                    .filter { it.title.contains(query.text, ignoreCase = true) }
+                return pageOf(albums, cursor, limit)
+            }
+        }
+
+        override val artists: PagedQuery<SearchQuery, Artist> = object : PagedQuery<SearchQuery, Artist> {
+            override suspend fun page(query: SearchQuery, cursor: Cursor?, limit: Int): Page<Artist> {
+                searchFailure?.let { throw it }
+                val artists = this@FakeMediaSource.tracks
+                    .flatMap { it.artists }
+                    .mapNotNull { ref -> ref.id?.let { Artist(it, ref.name) } }
+                    .distinctBy { it.id }
+                    .filter { it.name.contains(query.text, ignoreCase = true) }
+                return pageOf(artists, cursor, limit)
             }
         }
     }
@@ -68,7 +103,7 @@ class FakeMediaSource(
         }
     }
 
-    private fun pageOf(items: List<Track>, cursor: Cursor?, limit: Int): Page<Track> {
+    private fun <T> pageOf(items: List<T>, cursor: Cursor?, limit: Int): Page<T> {
         val start = cursor?.value?.toInt() ?: 0
         val end = (start + limit).coerceAtMost(items.size)
         val next = if (end < items.size) Cursor(end.toString()) else null

@@ -13,6 +13,8 @@ import space.wavedot.core.contract.SearchQuery
 import space.wavedot.core.contract.SourceDescriptor
 import space.wavedot.core.contract.SourceKind
 import space.wavedot.core.contract.Streaming
+import space.wavedot.core.model.Album
+import space.wavedot.core.model.Artist
 import space.wavedot.core.model.AudioQuality
 import space.wavedot.core.model.Cursor
 import space.wavedot.core.model.MediaId
@@ -21,6 +23,7 @@ import space.wavedot.core.model.SourceId
 import space.wavedot.core.model.Track
 import space.wavedot.core.model.stream.StreamSource
 import space.wavedot.plugin.yandexmusic.api.YandexMusicApi
+import space.wavedot.plugin.yandexmusic.api.YmSearchSection
 import space.wavedot.plugin.yandexmusic.stream.EncryptedStreamOpener
 
 internal class YandexMusicSource(
@@ -39,6 +42,23 @@ internal class YandexMusicSource(
                     .flatMap { chunk -> api.tracks(chunk.map { it.key }) }
                     .map(YandexMusicMapper::track)
         }
+
+        override val albumTracks: PagedQuery<MediaId, Track> = object : PagedQuery<MediaId, Track> {
+            override suspend fun page(query: MediaId, cursor: Cursor?, limit: Int): Page<Track> {
+                val album = api.albumWithTracks(YandexMusicMapper.rawId(query, YandexMusicMapper.ALBUM_PREFIX))
+                return Page(album.volumes.flatten().map(YandexMusicMapper::track))
+            }
+        }
+
+        override val artistTracks: PagedQuery<MediaId, Track> = object : PagedQuery<MediaId, Track> {
+            override suspend fun page(query: MediaId, cursor: Cursor?, limit: Int): Page<Track> {
+                val page = cursor?.value?.toIntOrNull() ?: 0
+                val result = api.artistTracks(YandexMusicMapper.rawId(query, YandexMusicMapper.ARTIST_PREFIX), page, limit)
+                val pager = result.pager
+                val hasMore = pager != null && (page + 1) * pager.perPage < pager.total && result.tracks.isNotEmpty()
+                return Page(result.tracks.map(YandexMusicMapper::track), if (hasMore) Cursor((page + 1).toString()) else null)
+            }
+        }
     }
 
     override val search: Search = object : Search {
@@ -49,6 +69,22 @@ internal class YandexMusicSource(
                 val consumed = (page + 1) * section.perPage.coerceAtLeast(section.results.size)
                 val next = if (section.results.isNotEmpty() && consumed < section.total) Cursor((page + 1).toString()) else null
                 return Page(section.results.take(limit).map(YandexMusicMapper::track), next)
+            }
+        }
+
+        override val albums: PagedQuery<SearchQuery, Album> = object : PagedQuery<SearchQuery, Album> {
+            override suspend fun page(query: SearchQuery, cursor: Cursor?, limit: Int): Page<Album> {
+                val page = cursor?.value?.toIntOrNull() ?: 0
+                val section = api.searchAlbums(query.text, page)
+                return Page(section.results.take(limit).map(YandexMusicMapper::album), nextPage(page, section))
+            }
+        }
+
+        override val artists: PagedQuery<SearchQuery, Artist> = object : PagedQuery<SearchQuery, Artist> {
+            override suspend fun page(query: SearchQuery, cursor: Cursor?, limit: Int): Page<Artist> {
+                val page = cursor?.value?.toIntOrNull() ?: 0
+                val section = api.searchArtists(query.text, page)
+                return Page(section.results.take(limit).map(YandexMusicMapper::artist), nextPage(page, section))
             }
         }
     }
@@ -83,6 +119,11 @@ internal class YandexMusicSource(
         override suspend fun like(trackId: MediaId) = api.setLiked(listOf(trackId.key), liked = true)
 
         override suspend fun unlike(trackId: MediaId) = api.setLiked(listOf(trackId.key), liked = false)
+    }
+
+    private fun nextPage(page: Int, section: YmSearchSection<*>): Cursor? {
+        val consumed = (page + 1) * section.perPage.coerceAtLeast(section.results.size)
+        return if (section.results.isNotEmpty() && consumed < section.total) Cursor((page + 1).toString()) else null
     }
 
     companion object {

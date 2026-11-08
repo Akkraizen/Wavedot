@@ -11,6 +11,7 @@ data class PlatformEnvironment(
     val deviceName: String,
     val supportsMusicFolders: Boolean,
     val defaultUpdatesUrl: String? = null,
+    val cacheDirectory: String? = null,
 )
 
 object StoreNames {

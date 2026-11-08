@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
@@ -38,16 +41,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import okio.Path.Companion.toPath
+import space.wavedot.core.model.Album
+import space.wavedot.core.model.Artist
 import space.wavedot.core.model.Track
 
 @Composable
 fun Artwork(
     seed: String,
     size: Dp,
+    url: String? = null,
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.medium,
     spinning: Boolean = false,
@@ -79,6 +88,81 @@ fun Artwork(
             tint = scheme.onPrimaryContainer.copy(alpha = 0.55f),
             modifier = Modifier.size(size * 0.38f).rotate(-rotation),
         )
+        if (url != null) {
+            AsyncImage(
+                model = artworkModel(url),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
+    }
+}
+
+fun artworkModel(url: String): Any =
+    if (url.contains("://")) url else url.replace('\\', '/').toPath()
+
+@Composable
+fun AlbumCard(
+    album: Album,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    width: Dp = 160.dp,
+) {
+    Column(
+        modifier = modifier
+            .width(width)
+            .clip(MaterialTheme.shapes.large)
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+    ) {
+        Artwork(
+            seed = album.title,
+            size = width - 16.dp,
+            url = album.artwork?.url,
+            shape = MaterialTheme.shapes.large,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(album.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            text = listOfNotNull(album.artists.firstOrNull()?.name, album.year?.toString()).joinToString(" · "),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+fun ArtistCard(
+    artist: Artist,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    width: Dp = 128.dp,
+) {
+    Column(
+        modifier = modifier
+            .width(width)
+            .clip(MaterialTheme.shapes.large)
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Artwork(
+            seed = artist.name,
+            size = width - 16.dp,
+            url = artist.artwork?.url,
+            shape = CircleShape,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = artist.name,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -102,6 +186,7 @@ fun TrackListItem(
             Artwork(
                 seed = track.album?.title ?: track.title,
                 size = 48.dp,
+                url = track.artwork?.url,
                 shape = if (playing) MaterialShapes.Cookie9Sided.toShape() else MaterialTheme.shapes.medium,
                 spinning = playing,
             )

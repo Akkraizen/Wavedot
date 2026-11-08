@@ -46,6 +46,7 @@ val androidModule = module {
             platform = PlatformDto.ANDROID,
             deviceName = "${Build.MANUFACTURER} ${Build.MODEL}",
             supportsMusicFolders = false,
+            cacheDirectory = androidContext().cacheDir.absolutePath,
         )
     }
 }

@@ -26,7 +26,8 @@ import space.wavedot.core.domain.player.FixedPlaybackPreferences
 import space.wavedot.core.domain.player.PlaybackPreferences
 import space.wavedot.core.domain.player.PlayerController
 import space.wavedot.core.domain.player.ResolveStream
-import space.wavedot.core.domain.search.SearchTracks
+import space.wavedot.core.domain.search.LoadCollection
+import space.wavedot.core.domain.search.SearchCatalog
 import space.wavedot.core.domain.sync.SyncGateway
 import space.wavedot.core.domain.sync.SyncLibrary
 import space.wavedot.core.domain.sync.SyncStateStore
@@ -83,7 +84,8 @@ val coreModule: Module = module {
     single<PlaybackPreferences> { FixedPlaybackPreferences(AudioQuality.LOSSLESS) }
     single { ResolveStream(get()) }
     single { PlayerController(get(), get(), get(), get(APP_SCOPE), get()) }
-    factory { SearchTracks(get()) }
+    factory { SearchCatalog(get()) }
+    factory { LoadCollection(get()) }
     factory { ToggleFavorite(get(), get(), get(), get()) }
     factory { SyncLibrary(get(), get(), get(), get(), get()) }
     factory { CheckForUpdates(get(), get<PlatformEnvironment>().app) }
@@ -106,7 +108,7 @@ val coreModule: Module = module {
 val viewModelModule: Module = module {
     viewModelOf(::PlayerViewModel)
     viewModelOf(::LibraryViewModel)
-    viewModel { SearchViewModel(get(), get(), get(), get()) }
+    viewModel { SearchViewModel(get(), get(), get(), get(), get()) }
     viewModelOf(::SettingsViewModel)
 }
 

@@ -66,7 +66,7 @@ val desktopModule = module {
     single<AudioEngine> { FfmpegAudioEngine(get()) }
     single<LocalTrackScanner> {
         val folders = get<MusicFolders>()
-        FileSystemTrackScanner { folders.current().map(::File) }
+        FileSystemTrackScanner(File(DesktopPaths.dataDir, "covers")) { folders.current().map(::File) }
     }
     single {
         PlatformEnvironment(
@@ -75,6 +75,7 @@ val desktopModule = module {
             platform = currentPlatform(),
             deviceName = runCatching { InetAddress.getLocalHost().hostName }.getOrDefault("Desktop"),
             supportsMusicFolders = true,
+            cacheDirectory = File(DesktopPaths.dataDir, "cache").absolutePath,
         )
     }
 }

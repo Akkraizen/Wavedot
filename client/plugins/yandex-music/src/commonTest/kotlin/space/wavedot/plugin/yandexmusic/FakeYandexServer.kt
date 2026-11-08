@@ -41,10 +41,22 @@ internal class FakeYandexServer {
                 val ids = body.substringAfter("track-ids=").substringBefore('&').replace("%2C", ",").split(',')
                 ok(ids.joinToString(",", "[", "]") { track(it, "Song $it") })
             }
+            path == "/search" && request.url.parameters["type"] == "album" ->
+                ok("""{"albums":{"total":1,"perPage":10,"results":[{"id":99,"title":"Gruppa krovi","year":1988,"trackCount":11,
+                   "coverUri":"avatars.yandex.net/get-music-content/2/def/%%","artists":[{"id":7,"name":"Kino"}]}]}}""")
+            path == "/search" && request.url.parameters["type"] == "artist" ->
+                ok("""{"artists":{"total":1,"perPage":10,"results":[{"id":7,"name":"Kino","cover":{"type":"from-artist-photos","uri":"avatars.yandex.net/get-music-content/3/ghi/%%"}}]}}""")
             path == "/search" -> {
                 val page = request.url.parameters["page"]!!.toInt()
                 val results = (0 until 2).joinToString(",") { track("${page * 2 + it + 1}", "Pachka sigaret") }
                 ok("""{"tracks":{"total":5,"perPage":2,"results":[$results]}}""")
+            }
+            path == "/albums/99/with-tracks" ->
+                ok("""{"id":99,"title":"Gruppa krovi","volumes":[[${track("101", "Gruppa krovi")},${track("102", "Zakrytaya dver")}],[${track("103", "Bonus")}]]}""")
+            path == "/artists/7/tracks" -> {
+                val page = request.url.parameters["page"]!!.toInt()
+                val tracks = if (page == 0) "${track("201", "Kukushka")},${track("202", "Peremen")}" else track("203", "Krasno-zheltye dni")
+                ok("""{"tracks":[$tracks],"pager":{"page":$page,"perPage":2,"total":3}}""")
             }
             path == "/users/1001/likes/tracks" ->
                 ok("""{"library":{"uid":1001,"revision":3,"tracks":[{"id":"10","albumId":"1"},{"id":"11:2","albumId":"2"},{"id":"12"}]}}""")

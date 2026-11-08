@@ -18,10 +18,12 @@
 - [ ] Playlists: local playlists, playlists imported from sources, sync through the hub.
 - [ ] Listening history and statistics, synced through the hub (`history` collection).
 - [ ] Persist the local file index in the database instead of rescanning on every start; watch folders for changes.
-- [ ] Artwork loading and caching (Coil 3), and embedded cover extraction for local files.
+- [x] Artwork loading and caching (Coil 3), embedded and folder covers for local files, MediaStore album art on Android.
+- [ ] Extract embedded covers on Android when MediaStore has no album art.
 - [ ] Offline cache for streamed tracks.
 - [ ] Persist and restore the queue and playback position between launches.
-- [ ] Search: albums, artists and playlists; per-source filters; search history.
+- [x] Search: tracks, albums and artists with scope filters; album and artist pages.
+- [ ] Search: playlists, per-source filters, search history, infinite scrolling of results.
 
 ## Playback
 

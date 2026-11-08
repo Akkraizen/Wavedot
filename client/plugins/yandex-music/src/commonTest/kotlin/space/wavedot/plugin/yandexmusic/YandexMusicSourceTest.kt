@@ -6,6 +6,7 @@ import space.wavedot.core.common.WavedotException
 import space.wavedot.core.contract.MediaSource
 import space.wavedot.core.contract.SearchQuery
 import space.wavedot.core.model.AudioQuality
+import space.wavedot.core.model.EntityKind
 import space.wavedot.core.model.MediaId
 import space.wavedot.core.model.stream.StreamSource
 import space.wavedot.core.testing.MediaSourceContractTest
@@ -53,6 +54,33 @@ class YandexMusicSourceTest {
         assertEquals(listOf("3", "4"), second.items.map { it.id.key })
         val third = source.search!!.tracks.page(SearchQuery("sigaret"), second.next)
         assertNull(third.next)
+    }
+
+    @Test
+    fun searchesAlbumsAndArtists() = runTest {
+        val album = source.search!!.albums!!.page(SearchQuery("gruppa", setOf(EntityKind.ALBUM))).items.single()
+        assertEquals(MediaId(YandexMusicSource.SOURCE_ID, "album/99"), album.id)
+        assertEquals("Kino", album.artists.single().name)
+        assertEquals(1988, album.year)
+        assertEquals("https://avatars.yandex.net/get-music-content/2/def/400x400", album.artwork?.url)
+
+        val artist = source.search!!.artists!!.page(SearchQuery("kino", setOf(EntityKind.ARTIST))).items.single()
+        assertEquals(MediaId(YandexMusicSource.SOURCE_ID, "artist/7"), artist.id)
+        assertEquals("https://avatars.yandex.net/get-music-content/3/ghi/400x400", artist.artwork?.url)
+    }
+
+    @Test
+    fun loadsAlbumAndArtistTracks() = runTest {
+        val catalog = source.catalog!!
+        val album = catalog.albumTracks!!.page(MediaId(YandexMusicSource.SOURCE_ID, "album/99"))
+        assertEquals(listOf("101", "102", "103"), album.items.map { it.id.key })
+        assertNull(album.next)
+
+        val first = catalog.artistTracks!!.page(MediaId(YandexMusicSource.SOURCE_ID, "artist/7"), limit = 2)
+        assertEquals(listOf("201", "202"), first.items.map { it.id.key })
+        val second = catalog.artistTracks!!.page(MediaId(YandexMusicSource.SOURCE_ID, "artist/7"), first.next, limit = 2)
+        assertEquals(listOf("203"), second.items.map { it.id.key })
+        assertNull(second.next)
     }
 
     @Test

@@ -16,6 +16,7 @@ kotlin {
             api(projects.client.feature.search)
             api(projects.client.feature.settings)
             implementation(projects.client.ui.designsystem)
+            implementation(libs.coil.network.ktor3)
             api(libs.koin.core)
             api(libs.koin.compose)
             api(libs.koin.compose.viewmodel)

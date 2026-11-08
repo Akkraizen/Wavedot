@@ -32,6 +32,13 @@ internal data class YmTrack(
 internal data class YmArtist(
     val id: JsonPrimitive? = null,
     val name: String = "",
+    val cover: YmCover? = null,
+    val ogImage: String? = null,
+)
+
+@Serializable
+internal data class YmCover(
+    val uri: String? = null,
 )
 
 @Serializable
@@ -40,11 +47,29 @@ internal data class YmAlbum(
     val title: String = "",
     val year: Int? = null,
     val coverUri: String? = null,
+    val artists: List<YmArtist> = emptyList(),
+    val trackCount: Int? = null,
+    val volumes: List<List<YmTrack>> = emptyList(),
 )
 
 @Serializable
 internal data class YmSearch(
     val tracks: YmSearchSection<YmTrack>? = null,
+    val albums: YmSearchSection<YmAlbum>? = null,
+    val artists: YmSearchSection<YmArtist>? = null,
+)
+
+@Serializable
+internal data class YmArtistTracks(
+    val tracks: List<YmTrack> = emptyList(),
+    val pager: YmPager? = null,
+)
+
+@Serializable
+internal data class YmPager(
+    val page: Int = 0,
+    val perPage: Int = 0,
+    val total: Int = 0,
 )
 
 @Serializable

@@ -67,6 +67,7 @@ fun WavedotApp(
     navigationLayout: NavigationLayout = NavigationLayout.BOTTOM_BAR,
     titleBar: @Composable () -> Unit = {},
 ) {
+    InstallImageLoader()
     WavedotTheme {
         val playerViewModel = koinViewModel<PlayerViewModel>()
         val playerState by playerViewModel.state.collectAsStateWithLifecycle()

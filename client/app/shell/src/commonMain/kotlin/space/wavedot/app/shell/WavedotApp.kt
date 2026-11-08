@@ -28,6 +28,7 @@ import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.material3.WideNavigationRailValue
 import androidx.compose.material3.rememberWideNavigationRailState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import space.wavedot.feature.library.LibraryScreen
 import space.wavedot.feature.library.LibraryViewModel
@@ -55,6 +57,7 @@ import space.wavedot.feature.settings.SettingsScreen
 import space.wavedot.feature.settings.SettingsViewModel
 import space.wavedot.ui.designsystem.WavedotIcons
 import space.wavedot.ui.designsystem.WavedotTheme
+import space.wavedot.ui.designsystem.color.Accents
 
 enum class Destination(val label: String, val icon: ImageVector, val selectedIcon: ImageVector) {
     LIBRARY("Library", WavedotIcons.LibraryMusic, WavedotIcons.LibraryMusicFilled),
@@ -70,7 +73,9 @@ fun WavedotApp(
     titleBar: @Composable () -> Unit = {},
 ) {
     InstallImageLoader()
-    WavedotTheme {
+    val appearance = koinInject<AppearanceSettings>()
+    val accentId by appearance.accentId.collectAsState(initial = null)
+    WavedotTheme(accent = Accents.byId(accentId)) {
         val playerViewModel = koinViewModel<PlayerViewModel>()
         val playerState by playerViewModel.state.collectAsStateWithLifecycle()
         var destination by rememberSaveable { mutableStateOf(Destination.LIBRARY) }

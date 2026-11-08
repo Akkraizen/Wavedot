@@ -16,6 +16,7 @@ import space.wavedot.feature.settings.PluginSecretField
 import space.wavedot.feature.settings.SettingsBackend
 import space.wavedot.infra.hub.HubClient
 import space.wavedot.infra.hub.HubSettings
+import space.wavedot.ui.designsystem.color.isSystemAccentSupported
 
 private val PluginStatus.Loaded.contributesNothing: Boolean
     get() = sources.isEmpty() && lyricsProviders.isEmpty()
@@ -31,6 +32,7 @@ class DefaultSettingsBackend(
     private val folders: MusicFolders,
     private val localLibrary: LocalLibrary,
     private val environment: PlatformEnvironment,
+    private val appearance: AppearanceSettings,
 ) : SettingsBackend {
     override val plugins: Flow<List<PluginInfo>> = pluginManager.entries.map { entries ->
         entries.map { entry ->
@@ -55,6 +57,12 @@ class DefaultSettingsBackend(
     override val musicFolders: Flow<List<String>>? = if (environment.supportsMusicFolders) folders.folders else null
 
     override val appVersion: String = environment.app.version
+
+    override val accentId: Flow<String> = appearance.accentId
+
+    override val systemAccentAvailable: Boolean = isSystemAccentSupported()
+
+    override suspend fun setAccent(id: String) = appearance.setAccent(id)
 
     override suspend fun updatePluginValue(pluginId: String, key: String, value: String) {
         val spec = pluginManager.entries.value.first { it.manifest.id == pluginId }.manifest.settings.first { it.key == key }

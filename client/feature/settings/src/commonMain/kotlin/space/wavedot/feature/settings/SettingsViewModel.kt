@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import space.wavedot.core.common.toWavedotError
+import space.wavedot.ui.designsystem.color.AccentColor
+import space.wavedot.ui.designsystem.color.Accents
 
 data class SettingsUiState(
     val plugins: List<PluginInfo> = emptyList(),
@@ -19,6 +21,8 @@ data class SettingsUiState(
     val appVersion: String = "",
     val busy: Boolean = false,
     val message: String? = null,
+    val accentId: String = Accents.Default.id,
+    val accents: List<AccentColor> = Accents.presets,
 )
 
 sealed interface SettingsIntent {
@@ -30,21 +34,33 @@ sealed interface SettingsIntent {
     data class AddFolder(val path: String) : SettingsIntent
     data class RemoveFolder(val path: String) : SettingsIntent
     data object DismissMessage : SettingsIntent
+    data class SelectAccent(val id: String) : SettingsIntent
 }
 
 class SettingsViewModel(private val backend: SettingsBackend) : ViewModel() {
     private val busy = MutableStateFlow(false)
     private val message = MutableStateFlow<String?>(null)
 
+    private val accents = Accents.available(backend.systemAccentAvailable)
+
     val state: StateFlow<SettingsUiState> = combine(
-        backend.plugins,
-        backend.hubConnected,
-        backend.musicFolders ?: flowOf(null),
-        busy,
-        message,
-    ) { plugins, hub, folders, isBusy, text ->
-        SettingsUiState(plugins, hub, folders, backend.appVersion, isBusy, text)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState(appVersion = backend.appVersion))
+        combine(
+            backend.plugins,
+            backend.hubConnected,
+            backend.musicFolders ?: flowOf(null),
+            busy,
+            message,
+        ) { plugins, hub, folders, isBusy, text ->
+            SettingsUiState(plugins, hub, folders, backend.appVersion, isBusy, text, accents = accents)
+        },
+        backend.accentId,
+    ) { state, accent ->
+        state.copy(accentId = accent)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        SettingsUiState(appVersion = backend.appVersion, accents = accents),
+    )
 
     fun onIntent(intent: SettingsIntent) {
         when (intent) {
@@ -74,6 +90,7 @@ class SettingsViewModel(private val backend: SettingsBackend) : ViewModel() {
                 message.value = "Found ${backend.rescanLocal()} tracks"
             }
             SettingsIntent.DismissMessage -> message.value = null
+            is SettingsIntent.SelectAccent -> viewModelScope.launch { backend.setAccent(intent.id) }
         }
     }
 

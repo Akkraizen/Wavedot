@@ -1,15 +1,21 @@
 package space.wavedot.feature.settings
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -39,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -48,6 +56,9 @@ import space.wavedot.ui.designsystem.SectionHeader
 import space.wavedot.ui.designsystem.SegmentGap
 import space.wavedot.ui.designsystem.WavedotIcons
 import space.wavedot.ui.designsystem.WavedotLogo
+import space.wavedot.ui.designsystem.color.AccentColor
+import space.wavedot.ui.designsystem.color.AccentKind
+import space.wavedot.ui.designsystem.color.systemColorScheme
 import space.wavedot.ui.designsystem.segmentedItemColors
 
 @Composable
@@ -69,6 +80,9 @@ fun SettingsScreen(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit, m
                 if (state.busy) LoadingIndicator(Modifier.size(32.dp))
             }
             Column(Modifier.padding(horizontal = 16.dp).widthIn(max = 840.dp)) {
+                SectionHeader("Appearance", Modifier.padding(start = 8.dp))
+                AccentPicker(state.accents, state.accentId) { onIntent(SettingsIntent.SelectAccent(it)) }
+
                 SectionHeader("Sources", Modifier.padding(start = 8.dp))
                 SegmentedGroup(state.plugins) { plugin, index, count -> PluginItem(plugin, index, count, onIntent) }
 
@@ -99,6 +113,74 @@ fun SettingsScreen(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit, m
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(16.dp))
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AccentPicker(accents: List<AccentColor>, selectedId: String, onSelect: (String) -> Unit) {
+    val dark = isSystemInDarkTheme()
+    val systemPrimary = systemColorScheme(dark)?.primary
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ListItemDefaults.segmentedShapes(index = 0, count = 1).shape)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(16.dp),
+    ) {
+        Text("Accent color", style = MaterialTheme.typography.titleMedium)
+        Text(
+            text = "Tints buttons, highlights, surfaces and the player",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(
+            modifier = Modifier.padding(top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            accents.forEach { accent ->
+                val color = if (accent.kind == AccentKind.System) systemPrimary ?: accent.swatch else accent.swatch
+                AccentSwatch(accent.name, color, selected = accent.id == selectedId) { onSelect(accent.id) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccentSwatch(name: String, color: Color, selected: Boolean, onClick: () -> Unit) {
+    val size by animateDpAsState(if (selected) 56.dp else 48.dp, MaterialTheme.motionScheme.fastSpatialSpec())
+    Column(
+        modifier = Modifier
+            .width(72.dp)
+            .clip(MaterialTheme.shapes.large)
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(size)
+                    .clip(if (selected) MaterialShapes.Cookie9Sided.toShape() else CircleShape)
+                    .background(color),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) {
+                    Icon(
+                        imageVector = WavedotIcons.Check,
+                        contentDescription = null,
+                        tint = if (color.luminance() > 0.5f) Color.Black else Color.White,
+                    )
+                }
+            }
+        }
+        Text(
+            text = name,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
     }
 }
 

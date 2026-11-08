@@ -1,0 +1,12 @@
+CREATE TABLE lyrics_cache (
+    source TEXT NOT NULL,
+    media_key TEXT NOT NULL,
+    found INTEGER NOT NULL,
+    synced INTEGER NOT NULL,
+    provider TEXT,
+    credits TEXT,
+    body TEXT,
+    fetched_at INTEGER NOT NULL,
+    PRIMARY KEY (source, media_key)
+);
+

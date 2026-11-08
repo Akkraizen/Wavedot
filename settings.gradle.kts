@@ -55,6 +55,7 @@ if (!serverOnly) include(
 if (!serverOnly) include(
     ":client:sources:local",
     ":client:plugins:yandex-music",
+    ":client:plugins:lrclib",
 )
 
 if (!serverOnly) include(

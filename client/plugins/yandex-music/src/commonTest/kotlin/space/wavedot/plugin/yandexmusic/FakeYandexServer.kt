@@ -30,11 +30,24 @@ internal class FakeYandexServer {
 
     private suspend fun MockRequestHandleScope.handle(request: HttpRequestData): HttpResponseData {
         requests += request
+        if (request.url.host == "lyrics.test") {
+            return when (request.url.encodedPath) {
+                "/42.lrc" -> respond("[00:01.00]Песен ещё ненаписанных\n[00:04.50]Сколько, скажи, кукушка", HttpStatusCode.OK)
+                "/43.txt" -> respond("Первая строка\nВторая строка", HttpStatusCode.OK)
+                else -> respond("", HttpStatusCode.NotFound)
+            }
+        }
         if (request.headers[HttpHeaders.Authorization] != "OAuth $token") {
             return respond("""{"error":{"name":"session-expired","message":"no"}}""", HttpStatusCode.Unauthorized, json)
         }
         val path = request.url.encodedPath
         return when {
+            path == "/tracks/42/lyrics" ->
+                ok("""{"downloadUrl":"https://lyrics.test/42.lrc","lyricId":1,"writers":["Viktor Tsoi"],"major":{"id":1,"name":"LF","prettyName":"LyricFind"}}""")
+            path == "/tracks/43/lyrics" && request.url.parameters["format"] == "TEXT" ->
+                ok("""{"downloadUrl":"https://lyrics.test/43.txt","writers":[]}""")
+            path.endsWith("/lyrics") ->
+                respond("""{"error":{"name":"not-found","message":"no lyrics"}}""", HttpStatusCode.NotFound, json)
             path == "/account/status" -> ok("""{"account":{"uid":1001}}""")
             path == "/tracks" && request.method == HttpMethod.Post -> {
                 val body = request.body.toByteArray().decodeToString()

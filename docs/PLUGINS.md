@@ -46,6 +46,15 @@ A source implements whichever capabilities its service supports. It must:
 
 Add a test that extends `MediaSourceContractTest`, using `ktor-client-mock` in place of the real service.
 
+## Lyrics providers
+
+Lyrics come from `LyricsProvider`s. A source can expose its own provider through `MediaSource.lyrics`, and a plugin can contribute standalone providers through `PluginContribution.lyricsProviders`; these search by track metadata and work for any source. `GetLyrics` only serves tracks from streaming sources (`SourceKind.STREAMING`). It asks the track's own source first, then the standalone providers in registration order, and returns the first synced result. If no synced result exists, it returns the first plain one. Results and misses are cached in the local database (misses for three days); failures are not cached. Synced lyrics use LRC; `LrcParser` in `core/model` handles timestamps, multiple stamps per line and the `[offset:]` tag.
+
+Built-in providers:
+
+- **Yandex Music.** `GET /tracks/{id}/lyrics` with `format` set to `LRC` or `TEXT`, `timeStamp`, and `sign = Base64(HMAC-SHA256(key, trackId + timeStamp))`. The response contains a `downloadUrl` with the text, plus writers and the licensing partner, which are shown as credits.
+- **LRCLIB** (`plugins/lrclib`). This is the free lrclib.net API and needs no key. The plugin first tries an exact match with `GET /api/get`, using title, artist, album and duration. If that fails, it retries with a cleaned title, without suffixes such as "(Remastered)". As a last resort it calls `GET /api/search` and accepts a candidate within 3 seconds of the track's duration, preferring synced lyrics.
+
 ## Registering a built-in plugin
 
 Add the module to `settings.gradle.kts`, depend on it from `client/app/shell`, and list it in `builtInPluginsModule` (`WavedotModules.kt`). Loading external plugins from JARs at runtime is planned (see TODO.md).

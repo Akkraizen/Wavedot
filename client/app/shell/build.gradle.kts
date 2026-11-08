@@ -11,6 +11,7 @@ kotlin {
             api(projects.client.infra.updater)
             api(projects.client.sources.local)
             api(projects.client.plugins.yandexMusic)
+            api(projects.client.plugins.lrclib)
             api(projects.client.feature.player)
             api(projects.client.feature.library)
             api(projects.client.feature.search)

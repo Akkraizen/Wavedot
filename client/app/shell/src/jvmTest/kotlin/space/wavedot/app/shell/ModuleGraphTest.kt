@@ -61,13 +61,15 @@ class ModuleGraphTest {
         val koin = koinApplication { modules(wavedotModules(testPlatform)) }.koin
         koin.get<SettingsBackend>()
         koin.get<space.wavedot.feature.player.PlayerViewModel>()
+        koin.get<space.wavedot.feature.player.LyricsViewModel>()
         koin.get<space.wavedot.feature.library.LibraryViewModel>()
         koin.get<space.wavedot.feature.search.SearchViewModel>()
         koin.get<space.wavedot.feature.settings.SettingsViewModel>()
         koin.bootstrap()
         val manager = koin.get<PluginManager>()
-        val entry = withTimeout(5_000) { manager.entries.first { list -> list.all { it.status != PluginStatus.Unloaded } } }.single()
-        assertIs<PluginStatus.Loaded>(entry.status)
+        val entries = withTimeout(5_000) { manager.entries.first { list -> list.all { it.status != PluginStatus.Unloaded } } }
+        entries.forEach { assertIs<PluginStatus.Loaded>(it.status) }
+        assertEquals(listOf("lrclib"), koin.get<space.wavedot.core.contract.LyricsProviderRegistry>().providers.value.map { it.id })
         assertEquals(listOf("local"), koin.get<MediaSourceRegistry>().sources.value.map { it.descriptor.id.value })
     }
 }

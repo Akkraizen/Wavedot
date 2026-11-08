@@ -60,6 +60,20 @@ internal class YandexMusicApi(
             parameter("page-size", pageSize)
         }
 
+    suspend fun lyrics(trackId: String, format: String): YmTrackLyrics? {
+        val timestamp = time.nowMillis() / 1000
+        val response = http.get("$baseUrl/tracks/$trackId/lyrics") {
+            authorize()
+            parameter("format", format)
+            parameter("timeStamp", timestamp)
+            parameter("sign", FileInfoSigner.signTrack(profile.signKey, trackId, timestamp))
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        return response.unwrap()
+    }
+
+    suspend fun download(url: String): String = http.get(url).bodyAsText()
+
     private suspend fun search(text: String, type: String, page: Int): YmSearch =
         get("/search") {
             parameter("text", text)

@@ -17,6 +17,9 @@ import space.wavedot.feature.settings.SettingsBackend
 import space.wavedot.infra.hub.HubClient
 import space.wavedot.infra.hub.HubSettings
 
+private val PluginStatus.Loaded.contributesNothing: Boolean
+    get() = sources.isEmpty() && lyricsProviders.isEmpty()
+
 class DefaultSettingsBackend(
     private val pluginManager: PluginManager,
     private val settingsStore: KeyValueStore,
@@ -37,11 +40,11 @@ class DefaultSettingsBackend(
                 name = entry.manifest.name,
                 description = entry.manifest.description,
                 status = when (status) {
-                    is PluginStatus.Loaded -> if (status.sources.isEmpty()) "Needs setup" else "Active"
+                    is PluginStatus.Loaded -> if (status.contributesNothing) "Needs setup" else "Active"
                     is PluginStatus.Failed -> "Error: ${status.reason}"
                     PluginStatus.Unloaded -> "Disabled"
                 },
-                active = status is PluginStatus.Loaded && status.sources.isNotEmpty(),
+                active = status is PluginStatus.Loaded && !status.contributesNothing,
                 fields = entry.manifest.settings.map { PluginSecretField(it.key, it.title, it.secret) },
             )
         }

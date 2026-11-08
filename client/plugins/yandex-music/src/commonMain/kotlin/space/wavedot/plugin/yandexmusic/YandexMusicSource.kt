@@ -5,6 +5,8 @@ import space.wavedot.core.common.WavedotError
 import space.wavedot.core.common.WavedotException
 import space.wavedot.core.contract.Catalog
 import space.wavedot.core.contract.EntityProvider
+import space.wavedot.core.contract.LyricsProvider
+import space.wavedot.core.contract.LyricsRequest
 import space.wavedot.core.contract.MediaSource
 import space.wavedot.core.contract.PagedQuery
 import space.wavedot.core.contract.RemoteLibrary
@@ -21,9 +23,12 @@ import space.wavedot.core.model.MediaId
 import space.wavedot.core.model.Page
 import space.wavedot.core.model.SourceId
 import space.wavedot.core.model.Track
+import space.wavedot.core.model.lyrics.LrcParser
+import space.wavedot.core.model.lyrics.Lyrics
 import space.wavedot.core.model.stream.StreamSource
 import space.wavedot.plugin.yandexmusic.api.YandexMusicApi
 import space.wavedot.plugin.yandexmusic.api.YmSearchSection
+import space.wavedot.plugin.yandexmusic.api.YmTrackLyrics
 import space.wavedot.plugin.yandexmusic.stream.EncryptedStreamOpener
 
 internal class YandexMusicSource(
@@ -121,6 +126,30 @@ internal class YandexMusicSource(
         override suspend fun unlike(trackId: MediaId) = api.setLiked(listOf(trackId.key), liked = false)
     }
 
+    override val lyrics: LyricsProvider = object : LyricsProvider {
+        override val id: String = "yandex-music-lyrics"
+        override val displayName: String = "Yandex Music"
+
+        override suspend fun find(request: LyricsRequest): Lyrics? {
+            val trackId = request.track.id
+            if (trackId.source != SOURCE_ID) return null
+            api.lyrics(trackId.key, FORMAT_LRC)?.let { info ->
+                val parsed = LrcParser.parse(api.download(info.downloadUrl), displayName, credits(info))
+                if (parsed.synced && !parsed.isEmpty) return parsed
+            }
+            val text = api.lyrics(trackId.key, FORMAT_TEXT) ?: return null
+            return Lyrics.plain(api.download(text.downloadUrl), displayName, credits(text))
+        }
+
+        private fun credits(info: YmTrackLyrics): String? {
+            val parts = buildList {
+                if (info.writers.isNotEmpty()) add("Writers: ${info.writers.joinToString(", ")}")
+                (info.major?.prettyName ?: info.major?.name)?.let { add("Provided by $it") }
+            }
+            return parts.joinToString(" · ").ifEmpty { null }
+        }
+    }
+
     private fun nextPage(page: Int, section: YmSearchSection<*>): Cursor? {
         val consumed = (page + 1) * section.perPage.coerceAtLeast(section.results.size)
         return if (section.results.isNotEmpty() && consumed < section.total) Cursor((page + 1).toString()) else null
@@ -128,6 +157,8 @@ internal class YandexMusicSource(
 
     companion object {
         val SOURCE_ID: SourceId = SourceId("yandex-music")
+        private const val FORMAT_LRC = "LRC"
+        private const val FORMAT_TEXT = "TEXT"
         private const val BATCH_SIZE = 100
 
         internal fun AudioQuality.toApi(): String = when (this) {

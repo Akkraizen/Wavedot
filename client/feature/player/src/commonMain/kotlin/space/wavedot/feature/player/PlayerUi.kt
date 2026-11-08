@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -30,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,14 +44,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import space.wavedot.core.domain.player.RepeatMode
 import space.wavedot.ui.designsystem.Artwork
 import space.wavedot.ui.designsystem.FavoriteToggle
 import space.wavedot.ui.designsystem.TrackListItem
 import space.wavedot.ui.designsystem.WavedotIcons
 import space.wavedot.ui.designsystem.toClock
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun MiniPlayer(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, onExpand: () -> Unit, modifier: Modifier = Modifier) {
@@ -85,7 +87,13 @@ fun MiniPlayer(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, onExpand:
 }
 
 @Composable
-fun PlayerBar(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, onExpand: () -> Unit, modifier: Modifier = Modifier) {
+fun PlayerBar(
+    state: PlayerUiState,
+    onIntent: (PlayerIntent) -> Unit,
+    onExpand: () -> Unit,
+    modifier: Modifier = Modifier,
+    onShowLyrics: () -> Unit = onExpand,
+) {
     val track = state.track ?: return
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -123,6 +131,9 @@ fun PlayerBar(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, onExpand: 
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 VolumeControl(state, onIntent, Modifier.width(160.dp))
+                IconButton(onClick = onShowLyrics, shapes = IconButtonDefaults.shapes()) {
+                    Icon(WavedotIcons.Lyrics, contentDescription = "Lyrics")
+                }
                 IconButton(onClick = onExpand, shapes = IconButtonDefaults.shapes()) {
                     Icon(WavedotIcons.QueueMusic, contentDescription = "Queue")
                 }
@@ -131,8 +142,18 @@ fun PlayerBar(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, onExpand: 
     }
 }
 
+enum class NowPlayingPanel { QUEUE, LYRICS }
+
 @Composable
-fun NowPlayingScreen(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, onCollapse: () -> Unit) {
+fun NowPlayingScreen(
+    state: PlayerUiState,
+    onIntent: (PlayerIntent) -> Unit,
+    onCollapse: () -> Unit,
+    lyrics: LyricsUiState,
+    onLyricsIntent: (LyricsIntent) -> Unit,
+    panel: NowPlayingPanel,
+    onPanelChange: (NowPlayingPanel) -> Unit,
+) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val wide = maxWidth > 840.dp
@@ -142,7 +163,8 @@ fun NowPlayingScreen(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, onC
                         Icon(WavedotIcons.KeyboardArrowDown, contentDescription = "Collapse")
                     }
                     Spacer(Modifier.width(12.dp))
-                    Text("Now playing", style = MaterialTheme.typography.titleLarge)
+                    Text("Now playing", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    PanelSelector(panel, onPanelChange)
                 }
                 if (state.track == null) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -153,12 +175,45 @@ fun NowPlayingScreen(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, onC
                 if (wide) {
                     Row(Modifier.fillMaxSize().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
                         NowPlayingHero(state, onIntent, Modifier.weight(1f).fillMaxHeight())
-                        QueuePane(state, onIntent, Modifier.weight(1f).fillMaxHeight())
+                        when (panel) {
+                            NowPlayingPanel.QUEUE -> QueuePane(state, onIntent, Modifier.weight(1f).fillMaxHeight())
+                            NowPlayingPanel.LYRICS -> LyricsPane(lyrics, onLyricsIntent, Modifier.weight(1f).fillMaxHeight())
+                        }
+                    }
+                } else if (panel == NowPlayingPanel.LYRICS) {
+                    LyricsPane(lyrics, onLyricsIntent, Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp))
+                    Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        SeekRow(state, onIntent)
+                        TransportControls(state, onIntent, large = false)
                     }
                 } else {
                     NowPlayingHero(state, onIntent, Modifier.fillMaxWidth().weight(1f).padding(horizontal = 24.dp))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PanelSelector(panel: NowPlayingPanel, onPanelChange: (NowPlayingPanel) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+        ToggleButton(
+            checked = panel == NowPlayingPanel.QUEUE,
+            onCheckedChange = { onPanelChange(NowPlayingPanel.QUEUE) },
+            shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+        ) {
+            Icon(WavedotIcons.QueueMusic, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Up next")
+        }
+        ToggleButton(
+            checked = panel == NowPlayingPanel.LYRICS,
+            onCheckedChange = { onPanelChange(NowPlayingPanel.LYRICS) },
+            shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+        ) {
+            Icon(WavedotIcons.Lyrics, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Lyrics")
         }
     }
 }

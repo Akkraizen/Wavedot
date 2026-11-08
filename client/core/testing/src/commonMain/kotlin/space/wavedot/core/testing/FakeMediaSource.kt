@@ -2,6 +2,7 @@ package space.wavedot.core.testing
 
 import space.wavedot.core.contract.Catalog
 import space.wavedot.core.contract.EntityProvider
+import space.wavedot.core.contract.LyricsProvider
 import space.wavedot.core.contract.MediaSource
 import space.wavedot.core.contract.PagedQuery
 import space.wavedot.core.contract.RemoteLibrary
@@ -26,11 +27,13 @@ class FakeMediaSource(
     liked: List<Track> = emptyList(),
     private val searchFailure: Throwable? = null,
     withLibrary: Boolean = false,
+    kind: SourceKind = SourceKind.STREAMING,
+    override val lyrics: LyricsProvider? = null,
 ) : MediaSource {
     val tracks: MutableList<Track> = tracks.toMutableList()
     val liked: MutableList<Track> = liked.toMutableList()
 
-    override val descriptor = SourceDescriptor(id, "Fake ${id.value}", SourceKind.STREAMING)
+    override val descriptor = SourceDescriptor(id, "Fake ${id.value}", kind)
 
     override val catalog: Catalog = object : Catalog {
         override val tracks: EntityProvider<Track> = object : EntityProvider<Track> {

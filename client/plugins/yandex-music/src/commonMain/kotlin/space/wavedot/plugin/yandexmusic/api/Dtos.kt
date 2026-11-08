@@ -121,3 +121,19 @@ internal data class YmDownloadInfo(
     val bitrate: Int? = null,
     val transport: String? = null,
 )
+
+@Serializable
+internal data class YmTrackLyrics(
+    val downloadUrl: String,
+    val lyricId: Long? = null,
+    val externalLyricId: String? = null,
+    val writers: List<String> = emptyList(),
+    val major: YmLyricsMajor? = null,
+)
+
+@Serializable
+internal data class YmLyricsMajor(
+    val id: Int? = null,
+    val name: String? = null,
+    val prettyName: String? = null,
+)

@@ -42,6 +42,8 @@ import org.koin.compose.viewmodel.koinViewModel
 import space.wavedot.feature.library.LibraryScreen
 import space.wavedot.feature.library.LibraryViewModel
 import space.wavedot.feature.player.MiniPlayer
+import space.wavedot.feature.player.LyricsViewModel
+import space.wavedot.feature.player.NowPlayingPanel
 import space.wavedot.feature.player.NowPlayingScreen
 import space.wavedot.feature.player.PlayerBar
 import space.wavedot.feature.player.PlayerIntent
@@ -73,6 +75,9 @@ fun WavedotApp(
         val playerState by playerViewModel.state.collectAsStateWithLifecycle()
         var destination by rememberSaveable { mutableStateOf(Destination.LIBRARY) }
         var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
+        var nowPlayingPanel by rememberSaveable { mutableStateOf(NowPlayingPanel.QUEUE) }
+        val lyricsViewModel = koinViewModel<LyricsViewModel>()
+        val lyricsState by lyricsViewModel.state.collectAsStateWithLifecycle()
 
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainer) {
             Column(Modifier.fillMaxSize()) {
@@ -92,10 +97,22 @@ fun WavedotApp(
                             playerState = playerState,
                             onPlayerIntent = playerViewModel::onIntent,
                             onExpandPlayer = { nowPlayingOpen = true },
+                            onShowLyrics = {
+                                nowPlayingPanel = NowPlayingPanel.LYRICS
+                                nowPlayingOpen = true
+                            },
                         )
                     }
                     NowPlayingOverlay(nowPlayingOpen) {
-                        NowPlayingScreen(playerState, playerViewModel::onIntent, onCollapse = { nowPlayingOpen = false })
+                        NowPlayingScreen(
+                            state = playerState,
+                            onIntent = playerViewModel::onIntent,
+                            onCollapse = { nowPlayingOpen = false },
+                            lyrics = lyricsState,
+                            onLyricsIntent = lyricsViewModel::onIntent,
+                            panel = nowPlayingPanel,
+                            onPanelChange = { nowPlayingPanel = it },
+                        )
                     }
                 }
             }
@@ -155,6 +172,7 @@ private fun ExpandedLayout(
     playerState: PlayerUiState,
     onPlayerIntent: (PlayerIntent) -> Unit,
     onExpandPlayer: () -> Unit,
+    onShowLyrics: () -> Unit,
 ) {
     val railState = rememberWideNavigationRailState(WideNavigationRailValue.Collapsed)
     val enterSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -205,7 +223,7 @@ private fun ExpandedLayout(
                 }
             }
         }
-        PlayerBar(playerState, onPlayerIntent, onExpand = onExpandPlayer)
+        PlayerBar(playerState, onPlayerIntent, onExpand = onExpandPlayer, onShowLyrics = onShowLyrics)
     }
 }
 

@@ -1,0 +1,18 @@
+CREATE TABLE lyrics_cache (
+    source TEXT NOT NULL,
+    media_key TEXT NOT NULL,
+    found INTEGER NOT NULL,
+    synced INTEGER NOT NULL,
+    provider TEXT,
+    credits TEXT,
+    body TEXT,
+    fetched_at INTEGER NOT NULL,
+    PRIMARY KEY (source, media_key)
+);
+
+select:
+SELECT * FROM lyrics_cache WHERE source = ? AND media_key = ?;
+
+upsert:
+INSERT OR REPLACE INTO lyrics_cache(source, media_key, found, synced, provider, credits, body, fetched_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);

@@ -33,7 +33,10 @@
 - [ ] Equalizer and ReplayGain in the desktop DSP chain.
 - [ ] Android: wrap the session player in a `ForwardingPlayer` so notification and Bluetooth controls drive `PlayerController` (next, previous, queue).
 - [ ] Desktop media keys and OS integration: Windows SMTC, MPRIS on Linux, macOS Now Playing.
-- [ ] Lyrics (LRC) with synced display.
+- [x] Lyrics for streaming tracks (Yandex Music, LRCLIB) with synced highlighting and tap-to-seek.
+- [ ] Lyrics for local files (embedded tags and sidecar `.lrc` files).
+- [ ] Per-track lyrics offset adjustment and provider order in Settings.
+- [ ] Word-level (karaoke) sync and translations.
 - [ ] Scrobbling (Last.fm, ListenBrainz).
 
 ## Sync and accounts (hub)

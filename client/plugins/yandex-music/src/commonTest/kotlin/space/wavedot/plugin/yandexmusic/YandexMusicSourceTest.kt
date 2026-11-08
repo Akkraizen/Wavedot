@@ -3,6 +3,7 @@ package space.wavedot.plugin.yandexmusic
 import kotlinx.coroutines.test.runTest
 import space.wavedot.core.common.WavedotError
 import space.wavedot.core.common.WavedotException
+import space.wavedot.core.contract.LyricsRequest
 import space.wavedot.core.contract.MediaSource
 import space.wavedot.core.contract.SearchQuery
 import space.wavedot.core.model.AudioQuality
@@ -10,11 +11,13 @@ import space.wavedot.core.model.EntityKind
 import space.wavedot.core.model.MediaId
 import space.wavedot.core.model.stream.StreamSource
 import space.wavedot.core.testing.MediaSourceContractTest
+import space.wavedot.core.testing.TestTracks
 import space.wavedot.plugin.yandexmusic.api.ClientProfile
 import space.wavedot.plugin.yandexmusic.api.YandexMusicApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -81,6 +84,27 @@ class YandexMusicSourceTest {
         val second = catalog.artistTracks!!.page(MediaId(YandexMusicSource.SOURCE_ID, "artist/7"), first.next, limit = 2)
         assertEquals(listOf("203"), second.items.map { it.id.key })
         assertNull(second.next)
+    }
+
+    @Test
+    fun providesSyncedLyricsWithSignedRequest() = runTest {
+        val track = source.catalog!!.tracks.get(MediaId(YandexMusicSource.SOURCE_ID, "42"))!!
+        val lyrics = assertNotNull(source.lyrics!!.find(LyricsRequest(track)))
+        assertTrue(lyrics.synced)
+        assertEquals(listOf(1_000L, 4_500L), lyrics.lines.map { it.start!!.inWholeMilliseconds })
+        assertEquals("Writers: Viktor Tsoi · Provided by LyricFind", lyrics.credits)
+        val request = server.requests.first { it.url.encodedPath == "/tracks/42/lyrics" }
+        assertEquals("LRC", request.url.parameters["format"])
+        assertEquals("1700000000", request.url.parameters["timeStamp"])
+        assertEquals("xbCyTDmnI1xqeQil9/hP1qB2FtKWwefJgL9dAJueaYs=", request.url.parameters["sign"])
+    }
+
+    @Test
+    fun fallsBackToPlainLyricsAndHandlesMissingOnes() = runTest {
+        val plain = assertNotNull(source.lyrics!!.find(LyricsRequest(TestTracks.track("43", source = YandexMusicSource.SOURCE_ID))))
+        assertFalse(plain.synced)
+        assertEquals(listOf("Первая строка", "Вторая строка"), plain.lines.map { it.text })
+        assertNull(source.lyrics!!.find(LyricsRequest(TestTracks.track("44", source = YandexMusicSource.SOURCE_ID))))
     }
 
     @Test

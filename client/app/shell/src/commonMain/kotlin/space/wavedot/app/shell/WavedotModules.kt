@@ -15,13 +15,17 @@ import space.wavedot.core.common.KeyValueStore
 import space.wavedot.core.common.Logger
 import space.wavedot.core.common.SystemTimeProvider
 import space.wavedot.core.common.TimeProvider
+import space.wavedot.core.contract.LyricsProviderRegistry
 import space.wavedot.core.contract.MediaSourceRegistry
 import space.wavedot.core.data.plugin.DefaultPluginContextFactory
 import space.wavedot.core.data.plugin.PluginManager
+import space.wavedot.core.data.source.DefaultLyricsProviderRegistry
 import space.wavedot.core.data.source.DefaultMediaSourceRegistry
 import space.wavedot.core.domain.library.FavoritesRepository
 import space.wavedot.core.domain.library.LocalLibrary
 import space.wavedot.core.domain.library.ToggleFavorite
+import space.wavedot.core.domain.lyrics.GetLyrics
+import space.wavedot.core.domain.lyrics.LyricsCache
 import space.wavedot.core.domain.player.FixedPlaybackPreferences
 import space.wavedot.core.domain.player.PlaybackPreferences
 import space.wavedot.core.domain.player.PlayerController
@@ -35,16 +39,19 @@ import space.wavedot.core.domain.update.CheckForUpdates
 import space.wavedot.core.domain.update.UpdateChecker
 import space.wavedot.core.model.AudioQuality
 import space.wavedot.feature.library.LibraryViewModel
+import space.wavedot.feature.player.LyricsViewModel
 import space.wavedot.feature.player.PlayerViewModel
 import space.wavedot.feature.search.SearchViewModel
 import space.wavedot.feature.settings.SettingsBackend
 import space.wavedot.feature.settings.SettingsViewModel
 import space.wavedot.infra.database.SqlFavoritesRepository
+import space.wavedot.infra.database.SqlLyricsCache
 import space.wavedot.infra.database.SqlSyncStateStore
 import space.wavedot.infra.hub.HubClient
 import space.wavedot.infra.hub.HubSettings
 import space.wavedot.infra.updater.HttpUpdateChecker
 import space.wavedot.plugin.api.WavedotPlugin
+import space.wavedot.plugin.lrclib.LrclibPlugin
 import space.wavedot.plugin.yandexmusic.YandexMusicPlugin
 import space.wavedot.source.local.LocalMediaSource
 
@@ -53,7 +60,7 @@ val SETTINGS_STORE = named(StoreNames.SETTINGS)
 val SECRETS_STORE = named(StoreNames.SECRETS)
 
 val builtInPluginsModule: Module = module {
-    single<List<WavedotPlugin>> { listOf(YandexMusicPlugin()) }
+    single<List<WavedotPlugin>> { listOf(YandexMusicPlugin(), LrclibPlugin()) }
 }
 
 val coreModule: Module = module {
@@ -61,10 +68,14 @@ val coreModule: Module = module {
     single<Logger> { ConsoleLogger() }
     single<TimeProvider> { SystemTimeProvider }
     single<MediaSourceRegistry> { DefaultMediaSourceRegistry() }
+    single<LyricsProviderRegistry> { DefaultLyricsProviderRegistry() }
+    single<LyricsCache> { SqlLyricsCache(get(), Dispatchers.IO) }
+    factory { GetLyrics(get(), get(), get(), get(), get()) }
     single {
         PluginManager(
             plugins = get(),
             registry = get(),
+            lyricsRegistry = get(),
             contextFactory = DefaultPluginContextFactory(get(), get(SETTINGS_STORE), get(SECRETS_STORE), get()),
             logger = get(),
         )
@@ -107,6 +118,7 @@ val coreModule: Module = module {
 
 val viewModelModule: Module = module {
     viewModelOf(::PlayerViewModel)
+    viewModelOf(::LyricsViewModel)
     viewModelOf(::LibraryViewModel)
     viewModel { SearchViewModel(get(), get(), get(), get(), get()) }
     viewModelOf(::SettingsViewModel)

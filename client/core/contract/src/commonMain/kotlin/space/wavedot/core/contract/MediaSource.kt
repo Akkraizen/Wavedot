@@ -24,6 +24,7 @@ interface MediaSource {
     val search: Search? get() = null
     val streaming: Streaming? get() = null
     val library: RemoteLibrary? get() = null
+    val lyrics: LyricsProvider? get() = null
 }
 
 interface Catalog {

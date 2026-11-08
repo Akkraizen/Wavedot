@@ -1,5 +1,6 @@
 package space.wavedot.plugin.api
 
+import space.wavedot.core.contract.LyricsProvider
 import space.wavedot.core.contract.MediaSource
 
 const val PLUGIN_API_VERSION: Int = 1
@@ -21,6 +22,7 @@ data class PluginSettingSpec(
 
 data class PluginContribution(
     val sources: List<MediaSource> = emptyList(),
+    val lyricsProviders: List<LyricsProvider> = emptyList(),
 )
 
 interface WavedotPlugin {

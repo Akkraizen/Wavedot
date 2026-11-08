@@ -26,4 +26,10 @@ internal object FileInfoSigner {
         val digest = PlatformCrypto.hmacSha256(key.encodeToByteArray(), message.encodeToByteArray())
         return Base64.encode(digest).dropLast(1)
     }
+
+    fun signTrack(key: String, trackId: String, timestamp: Long): String {
+        val numericId = trackId.substringBefore(':')
+        val digest = PlatformCrypto.hmacSha256(key.encodeToByteArray(), "$numericId$timestamp".encodeToByteArray())
+        return Base64.encode(digest)
+    }
 }

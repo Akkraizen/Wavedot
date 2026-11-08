@@ -24,6 +24,8 @@ interface SettingsBackend {
     val hubConnected: Flow<Boolean>
     val musicFolders: Flow<List<String>>?
     val appVersion: String
+    val accentId: Flow<String>
+    val systemAccentAvailable: Boolean
 
     suspend fun updatePluginValue(pluginId: String, key: String, value: String)
 
@@ -38,4 +40,6 @@ interface SettingsBackend {
     suspend fun setMusicFolders(folders: List<String>)
 
     suspend fun rescanLocal(): Int
+
+    suspend fun setAccent(id: String)
 }

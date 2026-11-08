@@ -28,6 +28,8 @@ class SettingsViewModelTest {
         override val hubConnected: Flow<Boolean> = MutableStateFlow(false)
         override val musicFolders: Flow<List<String>> = folders
         override val appVersion: String = "0.1.0"
+        override val accentId = MutableStateFlow("wavedot")
+        override val systemAccentAvailable: Boolean = true
 
         override suspend fun updatePluginValue(pluginId: String, key: String, value: String) {
             saved += Triple(pluginId, key, value)
@@ -42,6 +44,10 @@ class SettingsViewModelTest {
         }
 
         override suspend fun rescanLocal(): Int = 12
+
+        override suspend fun setAccent(id: String) {
+            accentId.value = id
+        }
     }
 
     @BeforeTest
@@ -64,6 +70,10 @@ class SettingsViewModelTest {
 
         viewModel.onIntent(SettingsIntent.ConnectHub("https://hub"))
         assertEquals("unreachable", viewModel.state.first { it.message == "unreachable" }.message)
+
+        viewModel.onIntent(SettingsIntent.SelectAccent("teal"))
+        assertEquals("teal", viewModel.state.first { it.accentId == "teal" }.accentId)
+        assertEquals("system", viewModel.state.value.accents.first().id)
 
         viewModel.onIntent(SettingsIntent.AddFolder("/more"))
         assertEquals(listOf("/music", "/more"), viewModel.state.first { it.musicFolders?.size == 2 }.musicFolders)

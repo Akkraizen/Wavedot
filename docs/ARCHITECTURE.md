@@ -81,7 +81,7 @@ Every source implementation must pass `MediaSourceContractTest`.
 
 ### UI
 
-- `ui/designsystem` holds the Material 3 Expressive theme, icons and shared components. Artwork is loaded with Coil 3: remote URLs go through the app's Ktor client, local covers are plain file paths, and the image loader is installed by `app/shell` with a disk cache in the platform cache directory.
+- `ui/designsystem` holds the Material 3 Expressive theme, icons and shared components. The accent color is user-selectable: presets generate a full light and dark scheme from a seed color (`color/SeedScheme.kt`, CIE LCh tonal palettes with Material 3 role tones), `System` uses Android 12+ dynamic color or the Windows accent color, and the choice is stored by `AppearanceSettings` in `app/shell`. Artwork is loaded with Coil 3: remote URLs go through the app's Ktor client, local covers are plain file paths, and the image loader is installed by `app/shell` with a disk cache in the platform cache directory.
 - Each `feature/*` module has a `ViewModel` that exposes a `StateFlow<UiState>` and accepts `Intent`s (MVI), plus stateless composables.
 - Features depend only on `core/domain` and on ports they declare themselves. For example, `SettingsBackend` lets the settings screen stay free of plugin and hub internals.
 - `app/shell` is the composition root shared by both apps. It contains the Koin modules (`wavedotModules(platformModule)`), `bootstrap()`, the adapters that implement feature ports, and `WavedotApp()`.

@@ -25,6 +25,13 @@
 - [x] Search: tracks, albums and artists with scope filters; album and artist pages.
 - [ ] Search: playlists, per-source filters, search history, infinite scrolling of results.
 
+## Appearance
+
+- [x] Accent color presets, Android dynamic color and the Windows accent color.
+- [ ] Light, dark and system theme mode switch.
+- [ ] Accent color extracted from the current track's artwork.
+- [ ] Custom accent color picker.
+
 ## Playback
 
 - [ ] Desktop: replace the JavaSound output with a WASAPI or miniaudio backend called through the FFM API (lower latency, exclusive mode, device selection).

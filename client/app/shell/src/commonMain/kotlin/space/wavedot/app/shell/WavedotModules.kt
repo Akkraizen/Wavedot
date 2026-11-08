@@ -101,8 +101,10 @@ val coreModule: Module = module {
             folders = get(),
             localLibrary = get(),
             environment = get(),
+            appearance = get(),
         )
     }
+    single { AppearanceSettings(get(SETTINGS_STORE)) }
 }
 
 val viewModelModule: Module = module {

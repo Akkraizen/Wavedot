@@ -1,20 +1,29 @@
 package space.wavedot.ui.designsystem
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import space.wavedot.ui.designsystem.color.AccentColor
+import space.wavedot.ui.designsystem.color.AccentKind
+import space.wavedot.ui.designsystem.color.Accents
+import space.wavedot.ui.designsystem.color.schemeFromSeed
+import space.wavedot.ui.designsystem.color.systemColorScheme
 
 val WavedotDarkColors: ColorScheme = darkColorScheme(
     primary = Color(0xFFCFBDFF),
@@ -120,16 +129,65 @@ val WavedotTypography: Typography = Typography().let { base ->
 }
 
 @Composable
+fun rememberAccentScheme(accent: AccentColor, darkTheme: Boolean): ColorScheme {
+    val brand = if (darkTheme) WavedotDarkColors else WavedotLightColors
+    return when (val kind = accent.kind) {
+        AccentKind.Brand -> brand
+        AccentKind.System -> systemColorScheme(darkTheme) ?: brand
+        is AccentKind.Seed -> remember(kind, darkTheme) { schemeFromSeed(kind.color, darkTheme, kind.spec) }
+    }
+}
+
+@Composable
 fun WavedotTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    colorScheme: ColorScheme? = null,
+    accent: AccentColor = Accents.Default,
     content: @Composable () -> Unit,
 ) {
     MaterialExpressiveTheme(
-        colorScheme = colorScheme ?: if (darkTheme) WavedotDarkColors else WavedotLightColors,
+        colorScheme = rememberAccentScheme(accent, darkTheme).animated(),
         motionScheme = MotionScheme.expressive(),
         shapes = WavedotShapes,
         typography = WavedotTypography,
         content = content,
     )
 }
+
+@Composable
+private fun Color.animatedTo(): Color {
+    val value by animateColorAsState(this, MaterialTheme.motionScheme.slowEffectsSpec())
+    return value
+}
+
+@Composable
+private fun ColorScheme.animated(): ColorScheme = copy(
+    primary = primary.animatedTo(),
+    onPrimary = onPrimary.animatedTo(),
+    primaryContainer = primaryContainer.animatedTo(),
+    onPrimaryContainer = onPrimaryContainer.animatedTo(),
+    inversePrimary = inversePrimary.animatedTo(),
+    secondary = secondary.animatedTo(),
+    onSecondary = onSecondary.animatedTo(),
+    secondaryContainer = secondaryContainer.animatedTo(),
+    onSecondaryContainer = onSecondaryContainer.animatedTo(),
+    tertiary = tertiary.animatedTo(),
+    onTertiary = onTertiary.animatedTo(),
+    tertiaryContainer = tertiaryContainer.animatedTo(),
+    onTertiaryContainer = onTertiaryContainer.animatedTo(),
+    background = background.animatedTo(),
+    onBackground = onBackground.animatedTo(),
+    surface = surface.animatedTo(),
+    onSurface = onSurface.animatedTo(),
+    surfaceVariant = surfaceVariant.animatedTo(),
+    onSurfaceVariant = onSurfaceVariant.animatedTo(),
+    surfaceTint = surfaceTint.animatedTo(),
+    outline = outline.animatedTo(),
+    outlineVariant = outlineVariant.animatedTo(),
+    surfaceBright = surfaceBright.animatedTo(),
+    surfaceDim = surfaceDim.animatedTo(),
+    surfaceContainerLowest = surfaceContainerLowest.animatedTo(),
+    surfaceContainerLow = surfaceContainerLow.animatedTo(),
+    surfaceContainer = surfaceContainer.animatedTo(),
+    surfaceContainerHigh = surfaceContainerHigh.animatedTo(),
+    surfaceContainerHighest = surfaceContainerHighest.animatedTo(),
+)

@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.4.10"
-agp = "9.5.1"
+agp = "9.4.1"
 compose-multiplatform = "1.12.2"
 compose-material3 = "1.9.0"
 android-compileSdk = "37"
@@ -29,6 +29,8 @@ h2 = "2.5.252"
 turbine = "1.2.1"
 
 [libraries]
+kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 compose-gradle-plugin = { module = "org.jetbrains.compose:compose-gradle-plugin", version.ref = "compose-multiplatform" }
 compose-compiler-gradle-plugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }

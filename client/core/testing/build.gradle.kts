@@ -10,10 +10,10 @@ kotlin {
             api(libs.kotlinx.coroutines.test)
         }
         jvmMain.dependencies {
-            api(kotlin("test-junit5"))
+            implementation(libs.kotlin.test.junit5)
         }
         androidMain.dependencies {
-            api(kotlin("test-junit"))
+            implementation(libs.kotlin.test.junit)
         }
     }
 }

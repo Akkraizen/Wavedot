@@ -50,3 +50,7 @@ docker compose -f deploy/docker-compose.yml up --build
 - [Server](docs/SERVER.md): the hub and updates services, configuration and deployment
 - [Protocol](docs/PROTOCOL.md): the client–server wire contract
 - [AGENTS.md](AGENTS.md): rules for contributors and coding agents
+
+## License
+
+Wavedot is free software, released under the [GNU General Public License v3.0](LICENSE). Third-party components keep their own licenses: FFmpeg (LGPL build) and jaudiotagger (LGPL-2.1) are linked dynamically and can be replaced; the other dependencies use Apache-2.0 or compatible licenses.

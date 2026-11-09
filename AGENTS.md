@@ -27,6 +27,7 @@ These rules apply to anyone changing this repository, people and coding agents a
    - no session links;
    - no "generated with" footers.
 8. Add new dependency versions through the version catalog only.
+9. The project is licensed under GPLv3. New dependencies must be GPLv3-compatible (for example Apache-2.0, MIT, BSD, LGPL, GPLv3). Do not add GPLv2-only, AGPL or proprietary code.
 
 ## Commands
 

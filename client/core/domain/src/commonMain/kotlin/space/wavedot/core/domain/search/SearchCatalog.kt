@@ -4,6 +4,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import space.wavedot.core.common.WavedotError
 import space.wavedot.core.common.toWavedotError
 import space.wavedot.core.contract.MediaSource
@@ -36,17 +38,21 @@ data class SourceSearchResult(
 }
 
 class SearchCatalog(private val registry: MediaSourceRegistry) {
+    val sources: Flow<List<SourceDescriptor>> = registry.sources.map { list ->
+        list.filter { it.search != null }.map { it.descriptor }
+    }
+
     suspend operator fun invoke(
         text: String,
         scope: SearchScope = SearchScope.ALL,
         limit: Int = DEFAULT_LIMIT,
-        only: SourceId? = null,
+        sources: Set<SourceId> = emptySet(),
     ): List<SourceSearchResult> {
         val query = text.trim()
         if (query.isEmpty()) return emptyList()
         val targets = registry.sources.value
             .filter { it.search != null }
-            .filter { only == null || it.descriptor.id == only }
+            .filter { sources.isEmpty() || it.descriptor.id in sources }
         return coroutineScope {
             targets
                 .map { source -> async { searchSource(source, SearchQuery(query, scope.kinds), limit) } }

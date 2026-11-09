@@ -18,6 +18,7 @@ data class PluginSettingSpec(
     val key: String,
     val title: String,
     val secret: Boolean = false,
+    val hint: String = "",
 )
 
 data class PluginContribution(

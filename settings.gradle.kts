@@ -56,6 +56,9 @@ if (!serverOnly) include(
     ":client:sources:local",
     ":client:plugins:yandex-music",
     ":client:plugins:lrclib",
+    ":client:plugins:audius",
+    ":client:plugins:radio-browser",
+    ":client:plugins:subsonic",
 )
 
 if (!serverOnly) include(

@@ -16,7 +16,7 @@ data class SourceDescriptor(
     val kind: SourceKind,
 )
 
-enum class SourceKind { LOCAL, STREAMING }
+enum class SourceKind { LOCAL, STREAMING, RADIO }
 
 interface MediaSource {
     val descriptor: SourceDescriptor

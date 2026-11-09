@@ -47,7 +47,17 @@ class DefaultSettingsBackend(
                     PluginStatus.Unloaded -> "Disabled"
                 },
                 active = status is PluginStatus.Loaded && !status.contributesNothing,
-                fields = entry.manifest.settings.map { PluginSecretField(it.key, it.title, it.secret) },
+                fields = entry.manifest.settings.map { spec ->
+                    val stored = store(entry.manifest.id, spec.secret).get(spec.key)
+                    PluginSecretField(
+                        key = spec.key,
+                        title = spec.title,
+                        secret = spec.secret,
+                        hint = spec.hint,
+                        value = stored.takeUnless { spec.secret },
+                        configured = !stored.isNullOrEmpty(),
+                    )
+                },
             )
         }
     }
@@ -66,10 +76,12 @@ class DefaultSettingsBackend(
 
     override suspend fun updatePluginValue(pluginId: String, key: String, value: String) {
         val spec = pluginManager.entries.value.first { it.manifest.id == pluginId }.manifest.settings.first { it.key == key }
-        val store = NamespacedPluginStore(if (spec.secret) secretsStore else settingsStore, pluginId)
-        store.set(key, value.ifEmpty { null })
+        store(pluginId, spec.secret).set(key, (if (spec.secret) value else value.trim()).ifEmpty { null })
         pluginManager.reload(pluginId)
     }
+
+    private fun store(pluginId: String, secret: Boolean) =
+        NamespacedPluginStore(if (secret) secretsStore else settingsStore, pluginId)
 
     override suspend fun connectHub(url: String) {
         hubClient.createAccount(url, environment.deviceName, environment.platform)

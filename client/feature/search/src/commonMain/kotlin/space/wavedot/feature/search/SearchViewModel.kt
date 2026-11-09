@@ -13,13 +13,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import space.wavedot.core.common.toWavedotError
+import space.wavedot.core.contract.SourceDescriptor
 import space.wavedot.core.domain.library.FavoritesRepository
 import space.wavedot.core.domain.library.ToggleFavorite
 import space.wavedot.core.domain.player.PlayerController
@@ -31,6 +31,7 @@ import space.wavedot.core.model.Album
 import space.wavedot.core.model.Artist
 import space.wavedot.core.model.EntityKind
 import space.wavedot.core.model.MediaId
+import space.wavedot.core.model.SourceId
 import space.wavedot.core.model.Track
 
 data class CollectionUi(
@@ -47,6 +48,8 @@ data class CollectionUi(
 data class SearchUiState(
     val query: String = "",
     val scope: SearchScope = SearchScope.ALL,
+    val sources: List<SourceDescriptor> = emptyList(),
+    val selectedSources: Set<SourceId> = emptySet(),
     val loading: Boolean = false,
     val results: List<SourceSearchResult> = emptyList(),
     val favoriteIds: Set<MediaId> = emptySet(),
@@ -57,6 +60,8 @@ data class SearchUiState(
 sealed interface SearchIntent {
     data class QueryChanged(val query: String) : SearchIntent
     data class ScopeChanged(val scope: SearchScope) : SearchIntent
+    data class ToggleSource(val id: SourceId) : SearchIntent
+    data object ShowAllSources : SearchIntent
     data class Play(val tracks: List<Track>, val index: Int) : SearchIntent
     data class ToggleFavorite(val track: Track) : SearchIntent
     data class PlayNext(val track: Track) : SearchIntent
@@ -65,6 +70,13 @@ sealed interface SearchIntent {
     data object CloseCollection : SearchIntent
     data class PlayCollection(val shuffle: Boolean) : SearchIntent
 }
+
+private data class SearchRequest(
+    val query: String,
+    val scope: SearchScope,
+    val sources: Set<SourceId>,
+    val available: Set<SourceId>,
+)
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SearchViewModel(
@@ -78,17 +90,31 @@ class SearchViewModel(
     private val local = MutableStateFlow(SearchUiState())
     private var collectionJob: Job? = null
 
-    val state: StateFlow<SearchUiState> = combine(local, favorites.observeIds(), player.state) { current, ids, playerState ->
-        current.copy(favoriteIds = ids, playingId = playerState.current?.id)
+    val state: StateFlow<SearchUiState> = combine(
+        local,
+        search.sources,
+        favorites.observeIds(),
+        player.state,
+    ) { current, sources, ids, playerState ->
+        current.copy(
+            sources = sources,
+            selectedSources = current.selectedSources.filterTo(mutableSetOf()) { id -> sources.any { it.id == id } },
+            favoriteIds = ids,
+            playingId = playerState.current?.id,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchUiState())
 
     init {
-        local
-            .map { it.query.trim() to it.scope }
+        combine(local, search.sources) { current, sources ->
+            val available = sources.mapTo(mutableSetOf()) { it.id }
+            SearchRequest(current.query.trim(), current.scope, current.selectedSources.intersect(available), available)
+        }
             .distinctUntilChanged()
             .debounce(debounceMillis)
-            .onEach { (query, _) -> local.update { it.copy(loading = query.isNotEmpty()) } }
-            .mapLatest { (query, scope) -> if (query.isEmpty()) emptyList() else search(query, scope) }
+            .onEach { request -> local.update { it.copy(loading = request.query.isNotEmpty()) } }
+            .mapLatest { request ->
+                if (request.query.isEmpty()) emptyList() else search(request.query, request.scope, sources = request.sources)
+            }
             .onEach { results -> local.update { it.copy(results = results, loading = false) } }
             .launchIn(viewModelScope)
     }
@@ -97,6 +123,11 @@ class SearchViewModel(
         when (intent) {
             is SearchIntent.QueryChanged -> local.update { it.copy(query = intent.query) }
             is SearchIntent.ScopeChanged -> local.update { it.copy(scope = intent.scope) }
+            is SearchIntent.ToggleSource -> local.update { current ->
+                val selected = current.selectedSources
+                current.copy(selectedSources = if (intent.id in selected) selected - intent.id else selected + intent.id)
+            }
+            SearchIntent.ShowAllSources -> local.update { it.copy(selectedSources = emptySet()) }
             is SearchIntent.Play -> player.play(intent.tracks, intent.index)
             is SearchIntent.ToggleFavorite -> viewModelScope.launch { toggleFavorite(intent.track) }
             is SearchIntent.PlayNext -> player.playNext(intent.track)

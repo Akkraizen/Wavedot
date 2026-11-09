@@ -1,6 +1,8 @@
 package space.wavedot.feature.search
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -21,6 +23,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Badge
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
@@ -76,6 +80,7 @@ fun SearchScreen(
         ScreenHeader(title = "Search")
         SearchField(state.query, onIntent)
         ScopeSelector(state.scope, onIntent)
+        SourceFilter(state, onIntent)
         when {
             state.query.isBlank() -> EmptyState(
                 icon = WavedotIcons.SearchFilled,
@@ -152,6 +157,37 @@ private fun ScopeSelector(scope: SearchScope, onIntent: (SearchIntent) -> Unit) 
             }
         }
     }
+}
+
+@Composable
+private fun SourceFilter(state: SearchUiState, onIntent: (SearchIntent) -> Unit) {
+    if (state.sources.size < 2) return
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        SourceChip("All sources", selected = state.selectedSources.isEmpty()) { onIntent(SearchIntent.ShowAllSources) }
+        state.sources.forEach { source ->
+            SourceChip(source.displayName, selected = source.id in state.selectedSources) {
+                onIntent(SearchIntent.ToggleSource(source.id))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SourceChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        leadingIcon = if (selected) {
+            { Icon(WavedotIcons.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+        } else {
+            null
+        },
+        shape = MaterialTheme.shapes.small,
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)

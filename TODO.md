@@ -5,8 +5,13 @@
 - [ ] **Spotify**: catalog, search, liked songs and playlists through the Web API. Playback options need research (Spotify Connect or a licensed SDK), because the Web API does not expose audio streams.
 - [ ] **YouTube / YouTube Music**: search, library and playlists; audio stream resolution.
 - [ ] **SoundCloud**: search, likes and stream resolution.
-- [ ] **Subsonic / Navidrome / Jellyfin**: self-hosted libraries.
-- [ ] **Internet radio**: Icecast/Shoutcast stations and ICY metadata.
+- [x] **Subsonic / OpenSubsonic** (Navidrome, Gonic, Airsonic, Ampache): search, albums, artists, streaming with bitrate caps, stars as likes.
+- [ ] Subsonic: several servers at once (plugin instances with their own `SourceId`), OpenSubsonic lyrics (`getLyricsBySongId`), server playlists.
+- [ ] **Jellyfin / Emby**: self-hosted libraries.
+- [x] **Internet radio** through Radio Browser: station search and live playback.
+- [ ] Internet radio: "now playing" from ICY metadata, station browsing by country and tag, HLS stations on Android.
+- [x] **Audius**: search, playlists, artists and streaming without an account.
+- [ ] **Internet Archive** and **Jamendo**: free catalogs.
 - [ ] Yandex Music: albums, artists, playlists, "My Wave" radio, lyrics.
 - [ ] Yandex Music: OAuth device flow in Settings instead of pasting a token.
 - [ ] Load plugins at runtime from JARs (desktop: `ServiceLoader` and an isolated class loader), with signature checks.
@@ -26,7 +31,8 @@
 - [ ] Offline cache for streamed tracks.
 - [ ] Persist and restore the queue and playback position between launches.
 - [x] Search: tracks, albums and artists with scope filters; album and artist pages.
-- [ ] Search: playlists, per-source filters, search history, infinite scrolling of results.
+- [x] Search: filter results by source.
+- [ ] Search: playlists, search history, infinite scrolling of results, remembered source filter.
 
 ## Appearance
 

@@ -71,6 +71,6 @@ class ModuleGraphTest {
         val entries = withTimeout(5_000) { manager.entries.first { list -> list.all { it.status != PluginStatus.Unloaded } } }
         entries.forEach { assertIs<PluginStatus.Loaded>(it.status) }
         assertEquals(listOf("lrclib"), koin.get<space.wavedot.core.contract.LyricsProviderRegistry>().providers.value.map { it.id })
-        assertEquals(listOf("local"), koin.get<MediaSourceRegistry>().sources.value.map { it.descriptor.id.value })
+        assertEquals(listOf("local", "audius", "radio"), koin.get<MediaSourceRegistry>().sources.value.map { it.descriptor.id.value })
     }
 }

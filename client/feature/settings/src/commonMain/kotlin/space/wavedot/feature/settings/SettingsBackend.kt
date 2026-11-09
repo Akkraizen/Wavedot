@@ -8,6 +8,9 @@ data class PluginSecretField(
     val key: String,
     val title: String,
     val secret: Boolean,
+    val hint: String = "",
+    val value: String? = null,
+    val configured: Boolean = false,
 )
 
 data class PluginInfo(

@@ -17,6 +17,7 @@ import space.wavedot.core.domain.player.ResolveStream
 import space.wavedot.core.domain.search.LoadCollection
 import space.wavedot.core.domain.search.SearchCatalog
 import space.wavedot.core.domain.search.SearchScope
+import space.wavedot.core.model.SourceId
 import space.wavedot.core.testing.FakeAudioEngine
 import space.wavedot.core.testing.FakeMediaSource
 import space.wavedot.core.testing.InMemoryFavoritesRepository
@@ -46,8 +47,10 @@ class SearchViewModelTest {
     @AfterTest
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun TestScope.create(): Pair<SearchViewModel, PlayerController> {
-        val registry = TestRegistry(source)
+    private val radio = FakeMediaSource(SourceId("radio"), tracks = TestTracks.tracks(2, SourceId("radio")))
+
+    private fun TestScope.create(vararg extra: FakeMediaSource): Pair<SearchViewModel, PlayerController> {
+        val registry = TestRegistry(source, *extra)
         val favorites = InMemoryFavoritesRepository()
         val controller = PlayerController(FakeAudioEngine(), ResolveStream(registry), FixedPlaybackPreferences(), backgroundScope)
         val viewModel = SearchViewModel(
@@ -107,5 +110,24 @@ class SearchViewModelTest {
         viewModel.onIntent(SearchIntent.CloseCollection)
         advanceUntilIdle()
         assertNull(viewModel.state.first { it.collection == null }.collection)
+    }
+
+    @Test
+    fun filtersBySelectedSources() = runTest(dispatcher) {
+        val (viewModel, _) = create(radio)
+        viewModel.onIntent(SearchIntent.QueryChanged("Track"))
+        advanceUntilIdle()
+        assertEquals(listOf(TestTracks.SOURCE, SourceId("radio")), viewModel.state.value.sources.map { it.id })
+        assertEquals(2, viewModel.state.value.results.size)
+
+        viewModel.onIntent(SearchIntent.ToggleSource(SourceId("radio")))
+        advanceUntilIdle()
+        assertEquals(setOf(SourceId("radio")), viewModel.state.value.selectedSources)
+        assertEquals(listOf(SourceId("radio")), viewModel.state.value.results.map { it.source.id })
+
+        viewModel.onIntent(SearchIntent.ShowAllSources)
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.selectedSources.isEmpty())
+        assertEquals(2, viewModel.state.value.results.size)
     }
 }

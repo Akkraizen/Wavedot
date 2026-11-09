@@ -236,12 +236,18 @@ private fun PluginItem(plugin: PluginInfo, index: Int, count: Int, onIntent: (Se
         AnimatedVisibility(expanded && plugin.fields.isNotEmpty()) {
             Column(Modifier.padding(start = 72.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 plugin.fields.forEach { field ->
-                    var value by remember(plugin.id, field.key) { mutableStateOf("") }
+                    var value by remember(plugin.id, field.key, field.value) { mutableStateOf(field.value.orEmpty()) }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = value,
                             onValueChange = { value = it },
                             label = { Text(field.title) },
+                            placeholder = field.hint.takeIf { it.isNotEmpty() }?.let { hint -> { Text(hint) } },
+                            supportingText = if (field.secret && field.configured) {
+                                { Text("Saved. Enter a new value to replace it.") }
+                            } else {
+                                null
+                            },
                             singleLine = true,
                             shape = MaterialTheme.shapes.large,
                             visualTransformation = if (field.secret) PasswordVisualTransformation() else VisualTransformation.None,
@@ -250,9 +256,9 @@ private fun PluginItem(plugin: PluginInfo, index: Int, count: Int, onIntent: (Se
                         Button(
                             onClick = {
                                 onIntent(SettingsIntent.SavePluginValue(plugin.id, field.key, value))
-                                value = ""
+                                if (field.secret) value = ""
                             },
-                            enabled = value.isNotBlank(),
+                            enabled = value.isNotBlank() && value != field.value,
                             shapes = ButtonDefaults.shapes(),
                         ) {
                             Text("Save")

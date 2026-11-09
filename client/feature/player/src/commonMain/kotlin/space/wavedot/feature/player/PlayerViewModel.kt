@@ -28,7 +28,9 @@ data class PlayerUiState(
     val queue: List<Track> = emptyList(),
     val queuePosition: Int = -1,
     val error: String? = null,
-)
+) {
+    val isLive: Boolean get() = track != null && duration == null
+}
 
 sealed interface PlayerIntent {
     data object TogglePlay : PlayerIntent

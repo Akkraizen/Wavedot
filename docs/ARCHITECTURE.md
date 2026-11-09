@@ -78,6 +78,10 @@ Every source implementation must pass `MediaSourceContractTest`.
 | `infra/updater` | `HttpUpdateChecker`, which implements `UpdateChecker`, and `UpdateDownloader` (SHA-256 verified) |
 | `sources/local` | `LocalMediaSource`, with `FileSystemTrackScanner` (desktop, jaudiotagger) and `MediaStoreTrackScanner` (Android) |
 | `plugins/yandex-music` | The built-in Yandex Music plugin. See [PLUGINS.md](PLUGINS.md) |
+| `plugins/subsonic` | Subsonic and OpenSubsonic servers (Navidrome, Gonic, Airsonic, Ampache) |
+| `plugins/audius` | The open Audius catalog, no account needed |
+| `plugins/radio-browser` | Internet radio stations from the Radio Browser directory (`SourceKind.RADIO`) |
+| `plugins/lrclib` | Lyrics from LRCLIB |
 
 ### UI
 
@@ -90,7 +94,7 @@ Every source implementation must pass `MediaSourceContractTest`.
 
 ### Data flow: playing a Yandex Music track
 
-1. `SearchViewModel` calls `SearchCatalog`, which fans out to every `Search` capability (tracks, albums and artists, depending on the selected scope). Each source's results are reported separately, so a failing source does not hide the others.
+1. `SearchViewModel` calls `SearchCatalog`, which fans out to every `Search` capability (tracks, albums and artists, depending on the selected scope), or only to the sources picked in the source filter. Each source's results are reported separately, so a failing source does not hide the others.
 2. A tap calls `PlayerController.play(tracks, index)`. `PlaybackQueue` is pure and immutable.
 3. `ResolveStream` picks the best supported quality and calls `Streaming.resolve` on the track's source.
 4. The Yandex plugin signs `get-file-info` and returns `StreamSource.Custom` with an `EncryptedStreamOpener`.

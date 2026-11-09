@@ -55,7 +55,10 @@ import space.wavedot.infra.hub.HubClient
 import space.wavedot.infra.hub.HubSettings
 import space.wavedot.infra.updater.HttpUpdateChecker
 import space.wavedot.plugin.api.WavedotPlugin
+import space.wavedot.plugin.audius.AudiusPlugin
 import space.wavedot.plugin.lrclib.LrclibPlugin
+import space.wavedot.plugin.radiobrowser.RadioBrowserPlugin
+import space.wavedot.plugin.subsonic.SubsonicPlugin
 import space.wavedot.plugin.yandexmusic.YandexMusicPlugin
 import space.wavedot.source.local.LocalMediaSource
 
@@ -64,7 +67,9 @@ val SETTINGS_STORE = named(StoreNames.SETTINGS)
 val SECRETS_STORE = named(StoreNames.SECRETS)
 
 val builtInPluginsModule: Module = module {
-    single<List<WavedotPlugin>> { listOf(YandexMusicPlugin(), LrclibPlugin()) }
+    single<List<WavedotPlugin>> {
+        listOf(YandexMusicPlugin(), SubsonicPlugin(), AudiusPlugin(), RadioBrowserPlugin(), LrclibPlugin())
+    }
 }
 
 val coreModule: Module = module {

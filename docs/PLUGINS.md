@@ -25,7 +25,7 @@ The lifecycle works like this:
 1. `PluginManager.loadAll()` runs at startup.
 2. For each plugin, the manager checks `apiVersion`, builds a `PluginContext` and calls `onLoad`. The returned sources are registered in the `MediaSourceRegistry`.
 3. If loading fails, the plugin is marked `Failed` with a reason, and the rest of the app keeps working.
-4. When the user saves a setting declared in the manifest, the host stores it (secrets separately) and reloads the plugin.
+4. When the user saves a setting declared in the manifest, the host stores it (secrets separately) and reloads the plugin. Settings show their current value in Settings; secrets only show that a value is saved. `PluginSettingSpec.hint` is shown as a placeholder.
 
 `PluginContext` provides:
 
@@ -35,7 +35,7 @@ The lifecycle works like this:
 
 ## Writing a source
 
-A source implements whichever capabilities its service supports. It must:
+A source implements whichever capabilities its service supports. Its `SourceDescriptor.kind` is `LOCAL`, `STREAMING` or `RADIO`. Radio sources emit tracks without a duration; the player shows them as live and disables seeking, and lyrics are not requested for them. It must:
 
 - use its own `SourceId` in every `MediaId` it emits;
 - turn backend paging into `Page`/`Cursor`;
@@ -58,6 +58,47 @@ Built-in providers:
 ## Registering a built-in plugin
 
 Add the module to `settings.gradle.kts`, depend on it from `client/app/shell`, and list it in `builtInPluginsModule` (`WavedotModules.kt`). Loading external plugins from JARs at runtime is planned (see TODO.md).
+
+## Built-in: Audius (`plugins/audius`)
+
+Audius is an open music catalog with a public API, so the plugin needs no account and no key. Every request carries `app_name=Wavedot`.
+
+| Capability | Endpoint |
+|---|---|
+| Catalog | `GET /v1/tracks/{id}` |
+| Search | `GET /v1/tracks/search`, `/v1/playlists/search`, `/v1/users/search` with `offset` and `limit` |
+| Album and artist tracks | `GET /v1/playlists/{id}/tracks`, `GET /v1/users/{id}/tracks` |
+| Streaming | `GET /v1/tracks/{id}/stream`, which redirects to an MP3 on a content node |
+
+Audius playlists and albums both appear as albums, with keys prefixed `playlist/`; users appear as artists with keys prefixed `user/`. Search hides tracks that are not streamable without signing in (`is_streamable = false`), but paging still advances by the raw page size.
+
+## Built-in: Internet radio (`plugins/radio-browser`)
+
+Stations come from the community [Radio Browser](https://www.radio-browser.info) directory through `all.api.radio-browser.info`. The source is `SourceKind.RADIO` with the id `radio`; a station is a `Track` keyed by its `stationuuid`, with the country, two tags and the codec as the artist line and no duration.
+
+| Capability | Endpoint |
+|---|---|
+| Catalog | `GET /json/stations/byuuid?uuids=…` |
+| Search | `GET /json/stations/search?name=…&hidebroken=true&order=clickcount&reverse=true`, paged by `offset` |
+| Streaming | `GET /json/url/{uuid}`, which registers a click and returns the stream URL; `url_resolved` is the fallback |
+
+Requests send a `User-Agent` of `Wavedot/0.1`, as the directory asks. Streams are played as plain remote URLs.
+
+## Built-in: Subsonic (`plugins/subsonic`)
+
+Connects to one server that speaks the Subsonic API 1.16.1, including OpenSubsonic servers such as Navidrome. Settings: server URL, username and password (a secret). The plugin stays inactive until all three are set; on load it calls `ping` and fails with `Unauthorized` if the credentials are wrong, while an unreachable server only logs a warning.
+
+Every request uses token authentication: `u`, `t = md5(password + salt)`, `s` (a random salt per session), `v = 1.16.1`, `c = Wavedot` and `f = json`. The password itself is never sent.
+
+| Capability | Endpoint |
+|---|---|
+| Catalog | `getSong`, `getAlbum`, `getArtist` |
+| Search | `search3`, one call per kind with `songCount`/`songOffset` and the matching album and artist parameters |
+| Streaming | `stream` with `maxBitRate` 128, 192 or 320 kbps for low, normal and high quality, and the original file for lossless |
+| Likes | `getStarred2`, `star`, `unstar` |
+| Artwork | `getCoverArt` at 480 px |
+
+Album keys are prefixed `album/` and artist keys `artist/`. Artist tracks are loaded ten albums per page. Stream and artwork URLs contain the salted token, so they stop working when the password changes.
 
 ## Built-in: Yandex Music (`plugins/yandex-music`)
 

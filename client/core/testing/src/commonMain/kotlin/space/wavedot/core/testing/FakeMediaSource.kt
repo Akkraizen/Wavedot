@@ -28,6 +28,7 @@ class FakeMediaSource(
     private val searchFailure: Throwable? = null,
     withLibrary: Boolean = false,
     kind: SourceKind = SourceKind.STREAMING,
+    private val searchable: Boolean = true,
     override val lyrics: LyricsProvider? = null,
 ) : MediaSource {
     val tracks: MutableList<Track> = tracks.toMutableList()
@@ -51,7 +52,9 @@ class FakeMediaSource(
         }
     }
 
-    override val search: Search = object : Search {
+    override val search: Search? get() = if (searchable) searchCapability else null
+
+    private val searchCapability: Search = object : Search {
         override val tracks: PagedQuery<SearchQuery, Track> = object : PagedQuery<SearchQuery, Track> {
             override suspend fun page(query: SearchQuery, cursor: Cursor?, limit: Int): Page<Track> {
                 searchFailure?.let { throw it }

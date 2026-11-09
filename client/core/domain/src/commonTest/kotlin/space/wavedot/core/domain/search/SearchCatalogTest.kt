@@ -1,5 +1,6 @@
 package space.wavedot.core.domain.search
 
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import space.wavedot.core.common.WavedotException
 import space.wavedot.core.model.EntityKind
@@ -38,6 +39,19 @@ class SearchCatalogTest {
         assertNotNull(ok.tracks.next)
         assertNull(ok.error)
         assertNotNull(results.first { it.source.id == SourceId("broken") }.error)
+    }
+
+    @Test
+    fun searchesOnlySelectedSources() = runTest {
+        val results = search("track", SearchScope.TRACKS, sources = setOf(SourceId("good")))
+        assertEquals(listOf(SourceId("good")), results.map { it.source.id })
+    }
+
+    @Test
+    fun listsSearchableSources() = runTest {
+        val local = FakeMediaSource(SourceId("plain"), searchable = false)
+        val sources = SearchCatalog(TestRegistry(good, local, broken)).sources.first()
+        assertEquals(listOf(SourceId("good"), SourceId("broken")), sources.map { it.id })
     }
 
     @Test

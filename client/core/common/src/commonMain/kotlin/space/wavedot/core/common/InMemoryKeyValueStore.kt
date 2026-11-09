@@ -11,9 +11,12 @@ class InMemoryKeyValueStore(initial: Map<String, String> = emptyMap()) : KeyValu
 
     override suspend fun get(key: String): String? = state.value[key]
 
-    override suspend fun set(key: String, value: String?) = state.update {
-        if (value == null) it - key else it + (key to value)
-    }
+    override suspend fun set(key: String, value: String) = state.update { it + (key to value) }
 
-    override fun observe(key: String): Flow<String?> = state.map { it[key] }.distinctUntilChanged()
+    override suspend fun delete(key: String) = state.update { it - key }
+
+    override fun observe(key: String): Flow<String?> =
+        state
+            .map { it[key] }
+            .distinctUntilChanged()
 }

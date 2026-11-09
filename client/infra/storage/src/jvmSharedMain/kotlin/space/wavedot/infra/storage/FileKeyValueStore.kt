@@ -19,17 +19,30 @@ class FileKeyValueStore(private val file: File) : KeyValueStore {
 
     override suspend fun get(key: String): String? = state.value[key]
 
-    override suspend fun set(key: String, value: String?) = mutex.withLock {
-        val updated = if (value == null) state.value - key else state.value + (key to value)
-        if (updated == state.value) return@withLock
+    override suspend fun set(key: String, value: String) = write { it + (key to value) }
+
+    override suspend fun delete(key: String) = write { it - key }
+
+    override fun observe(key: String): Flow<String?> =
+        state
+            .map { it[key] }
+            .distinctUntilChanged()
+
+    private suspend fun write(
+        transform: (Map<String, String>) -> Map<String, String>,
+    ) = mutex.withLock {
+        val updated = transform(state.value)
+        if (updated == state.value) {
+            return@withLock
+        }
         withContext(Dispatchers.IO) { writeFile(updated) }
         state.value = updated
     }
 
-    override fun observe(key: String): Flow<String?> = state.map { it[key] }.distinctUntilChanged()
-
     private fun readFile(): Map<String, String> {
-        if (!file.exists()) return emptyMap()
+        if (!file.exists()) {
+            return emptyMap()
+        }
         val properties = Properties()
         file.inputStream().use(properties::load)
         return properties.stringPropertyNames().associateWith(properties::getProperty)

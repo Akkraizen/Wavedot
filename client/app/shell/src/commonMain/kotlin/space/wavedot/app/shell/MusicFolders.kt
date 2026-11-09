@@ -9,9 +9,20 @@ class MusicFolders(private val store: KeyValueStore) {
 
     suspend fun current(): List<String> = decode(store.get(KEY))
 
-    suspend fun set(folders: List<String>) = store.set(KEY, folders.distinct().joinToString("\n").ifEmpty { null })
+    suspend fun set(folders: List<String>) {
+        val encoded = folders.distinct().joinToString("\n")
+        if (encoded.isEmpty()) {
+            store.delete(KEY)
+        } else {
+            store.set(KEY, encoded)
+        }
+    }
 
-    private fun decode(value: String?): List<String> = value?.split('\n')?.filter { it.isNotBlank() }.orEmpty()
+    private fun decode(value: String?): List<String> =
+        value
+            ?.split('\n')
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
 
     private companion object {
         const val KEY = "local.folders"

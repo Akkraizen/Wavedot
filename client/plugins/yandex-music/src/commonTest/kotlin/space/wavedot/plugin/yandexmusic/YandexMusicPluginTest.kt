@@ -12,9 +12,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class YandexMusicPluginTest {
-    private class Store(private val delegate: InMemoryKeyValueStore = InMemoryKeyValueStore()) : PluginStore {
+    private class Store(
+        private val delegate: InMemoryKeyValueStore = InMemoryKeyValueStore(),
+    ) : PluginStore {
         override suspend fun get(key: String) = delegate.get(key)
-        override suspend fun set(key: String, value: String?) = delegate.set(key, value)
+        override suspend fun set(key: String, value: String) = delegate.set(key, value)
+        override suspend fun delete(key: String) = delegate.delete(key)
         override fun observe(key: String) = delegate.observe(key)
     }
 

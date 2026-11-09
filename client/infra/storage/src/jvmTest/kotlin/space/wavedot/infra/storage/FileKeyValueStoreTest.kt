@@ -13,7 +13,7 @@ class FileKeyValueStoreTest {
         val store = FileKeyValueStore(file)
         store.set("a", "1")
         store.set("b", "2")
-        store.set("b", null)
+        store.delete("b")
         val reopened = FileKeyValueStore(file)
         assertEquals("1", reopened.get("a"))
         assertNull(reopened.get("b"))

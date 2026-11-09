@@ -10,7 +10,9 @@ class NamespacedPluginStore(
 ) : PluginStore {
     override suspend fun get(key: String): String? = delegate.get(scoped(key))
 
-    override suspend fun set(key: String, value: String?) = delegate.set(scoped(key), value)
+    override suspend fun set(key: String, value: String) = delegate.set(scoped(key), value)
+
+    override suspend fun delete(key: String) = delegate.delete(scoped(key))
 
     override fun observe(key: String): Flow<String?> = delegate.observe(scoped(key))
 

@@ -15,11 +15,18 @@ class HubSettings(private val store: KeyValueStore) {
     suspend fun connection(): HubConnection? {
         val url = store.get(KEY_URL) ?: return null
         val token = store.get(KEY_TOKEN) ?: return null
-        return HubConnection(url, token, store.get(KEY_ACCOUNT).orEmpty(), store.get(KEY_DEVICE).orEmpty())
+        return HubConnection(
+            baseUrl = url,
+            deviceToken = token,
+            accountId = store.get(KEY_ACCOUNT).orEmpty(),
+            deviceId = store.get(KEY_DEVICE).orEmpty(),
+        )
     }
 
     fun observeConnected(): Flow<Boolean> =
-        combine(store.observe(KEY_URL), store.observe(KEY_TOKEN)) { url, token -> url != null && token != null }
+        combine(store.observe(KEY_URL), store.observe(KEY_TOKEN)) { url, token ->
+            url != null && token != null
+        }
 
     suspend fun save(connection: HubConnection) {
         store.set(KEY_URL, connection.baseUrl.trimEnd('/'))
@@ -29,7 +36,8 @@ class HubSettings(private val store: KeyValueStore) {
     }
 
     suspend fun clear() {
-        listOf(KEY_URL, KEY_TOKEN, KEY_ACCOUNT, KEY_DEVICE).forEach { store.set(it, null) }
+        listOf(KEY_URL, KEY_TOKEN, KEY_ACCOUNT, KEY_DEVICE)
+            .forEach { store.delete(it) }
     }
 
     private companion object {

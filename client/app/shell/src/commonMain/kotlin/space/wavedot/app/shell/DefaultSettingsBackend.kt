@@ -42,7 +42,13 @@ class DefaultSettingsBackend(
                 name = entry.manifest.name,
                 description = entry.manifest.description,
                 status = when (status) {
-                    is PluginStatus.Loaded -> if (status.contributesNothing) "Needs setup" else "Active"
+                    is PluginStatus.Loaded -> {
+                        if (status.contributesNothing) {
+                            "Needs setup"
+                        } else {
+                            "Active"
+                        }
+                    }
                     is PluginStatus.Failed -> "Error: ${status.reason}"
                     PluginStatus.Unloaded -> "Disabled"
                 },
@@ -64,7 +70,12 @@ class DefaultSettingsBackend(
 
     override val hubConnected: Flow<Boolean> = hubSettings.observeConnected()
 
-    override val musicFolders: Flow<List<String>>? = if (environment.supportsMusicFolders) folders.folders else null
+    override val musicFolders: Flow<List<String>>? =
+        if (environment.supportsMusicFolders) {
+            folders.folders
+        } else {
+            null
+        }
 
     override val appVersion: String = environment.app.version
 
@@ -75,13 +86,32 @@ class DefaultSettingsBackend(
     override suspend fun setAccent(id: String) = appearance.setAccent(id)
 
     override suspend fun updatePluginValue(pluginId: String, key: String, value: String) {
-        val spec = pluginManager.entries.value.first { it.manifest.id == pluginId }.manifest.settings.first { it.key == key }
-        store(pluginId, spec.secret).set(key, (if (spec.secret) value else value.trim()).ifEmpty { null })
+        val spec = pluginManager.entries.value
+            .first { it.manifest.id == pluginId }
+            .manifest.settings
+            .first { it.key == key }
+        val store = store(pluginId, spec.secret)
+        val normalized = if (spec.secret) {
+            value
+        } else {
+            value.trim()
+        }
+        if (normalized.isEmpty()) {
+            store.delete(key)
+        } else {
+            store.set(key, normalized)
+        }
         pluginManager.reload(pluginId)
     }
 
-    private fun store(pluginId: String, secret: Boolean) =
-        NamespacedPluginStore(if (secret) secretsStore else settingsStore, pluginId)
+    private fun store(pluginId: String, secret: Boolean): NamespacedPluginStore {
+        val delegate = if (secret) {
+            secretsStore
+        } else {
+            settingsStore
+        }
+        return NamespacedPluginStore(delegate, pluginId)
+    }
 
     override suspend fun connectHub(url: String) {
         hubClient.createAccount(url, environment.deviceName, environment.platform)

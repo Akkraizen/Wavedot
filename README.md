@@ -19,6 +19,7 @@ This is an early scaffold. The following already works and is covered by tests:
 - the play queue, with shuffle and repeat
 - aggregated search across all sources
 - favorites, stored in SQLite and mirrored to sources that support likes
+- local playlists, with a "Save to" sheet reachable from every track and from the player
 - the plugin system, with the built-in **Yandex Music** plugin (signed `get-file-info`, AES-CTR decryption on the fly, seekable streams)
 - sync of favorites through the hub
 - update checks against the updates service

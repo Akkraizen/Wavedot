@@ -1,6 +1,7 @@
 package space.wavedot.infra.database
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import space.wavedot.core.model.lyrics.Lyrics
 import space.wavedot.core.testing.TestTracks
@@ -21,7 +22,7 @@ class DatabaseMigrationTest {
     }
 
     @Test
-    fun upgradesVersionOneDatabaseWithLyricsCache() = runTest {
+    fun upgradesVersionOneDatabase() = runTest {
         DriverManager.getConnection("jdbc:sqlite:${file.absolutePath}").use { connection ->
             connection.createStatement().use { statement ->
                 statement.execute("CREATE TABLE favorite (id TEXT NOT NULL PRIMARY KEY)")
@@ -35,6 +36,11 @@ class DatabaseMigrationTest {
         cache.put(id, lyrics, 1)
 
         assertEquals(lyrics, cache.get(id)?.lyrics)
+
+        val playlists = SqlPlaylistRepository(createJvmDatabase(file), Dispatchers.Unconfined)
+        playlists.create("p", "Mix", 1)
+        playlists.add("p", listOf(TestTracks.track("1")), 2)
+        assertEquals(1, playlists.observeAll().first().single().trackCount)
         assertEquals(WavedotDatabase.Schema.version, userVersion())
     }
 

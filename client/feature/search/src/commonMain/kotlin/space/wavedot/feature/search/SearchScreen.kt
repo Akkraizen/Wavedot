@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import space.wavedot.core.domain.search.SearchScope
 import space.wavedot.core.domain.search.SourceSearchResult
 import space.wavedot.core.model.EntityKind
+import space.wavedot.core.model.Track
 import space.wavedot.ui.designsystem.AlbumCard
 import space.wavedot.ui.designsystem.ArtistCard
 import space.wavedot.ui.designsystem.Artwork
@@ -53,16 +54,22 @@ import space.wavedot.ui.designsystem.EmptyState
 import space.wavedot.ui.designsystem.ScreenHeader
 import space.wavedot.ui.designsystem.SectionHeader
 import space.wavedot.ui.designsystem.SegmentGap
+import space.wavedot.ui.designsystem.TrackAction
 import space.wavedot.ui.designsystem.TrackListItem
 import space.wavedot.ui.designsystem.WavedotIcons
 
 private const val TRACK_PREVIEW = 5
 
 @Composable
-fun SearchScreen(state: SearchUiState, onIntent: (SearchIntent) -> Unit, modifier: Modifier = Modifier) {
+fun SearchScreen(
+    state: SearchUiState,
+    onIntent: (SearchIntent) -> Unit,
+    onAddToPlaylist: (List<Track>) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val collection = state.collection
     if (collection != null) {
-        CollectionScreen(collection, state, onIntent, modifier)
+        CollectionScreen(collection, state, onIntent, onAddToPlaylist, modifier)
         return
     }
     Column(modifier.fillMaxSize()) {
@@ -87,7 +94,7 @@ fun SearchScreen(state: SearchUiState, onIntent: (SearchIntent) -> Unit, modifie
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
             ) {
-                state.results.forEach { result -> sourceSection(result, state, onIntent) }
+                state.results.forEach { result -> sourceSection(result, state, onIntent, onAddToPlaylist) }
             }
         }
     }
@@ -148,7 +155,12 @@ private fun ScopeSelector(scope: SearchScope, onIntent: (SearchIntent) -> Unit) 
 }
 
 @OptIn(ExperimentalLayoutApi::class)
-private fun LazyListScope.sourceSection(result: SourceSearchResult, state: SearchUiState, onIntent: (SearchIntent) -> Unit) {
+private fun LazyListScope.sourceSection(
+    result: SourceSearchResult,
+    state: SearchUiState,
+    onIntent: (SearchIntent) -> Unit,
+    onAddToPlaylist: (List<Track>) -> Unit,
+) {
     val sourceKey = result.source.id.value
     item(key = "header-$sourceKey") {
         SectionHeader(result.source.displayName, Modifier.padding(start = 0.dp)) {
@@ -231,6 +243,7 @@ private fun LazyListScope.sourceSection(result: SourceSearchResult, state: Searc
                 onClick = { onIntent(SearchIntent.Play(tracks, tracks.indexOf(track))) },
                 onToggleFavorite = { onIntent(SearchIntent.ToggleFavorite(track)) },
                 modifier = Modifier.padding(bottom = SegmentGap),
+                actions = trackActions(track, onIntent, onAddToPlaylist),
             )
         }
     }
@@ -251,6 +264,7 @@ private fun CollectionScreen(
     collection: CollectionUi,
     state: SearchUiState,
     onIntent: (SearchIntent) -> Unit,
+    onAddToPlaylist: (List<Track>) -> Unit,
     modifier: Modifier,
 ) {
     LazyColumn(
@@ -301,7 +315,7 @@ private fun CollectionScreen(
                             )
                         }
                         Spacer(Modifier.height(16.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Button(
                                 onClick = { onIntent(SearchIntent.PlayCollection(shuffle = false)) },
                                 enabled = collection.tracks.isNotEmpty(),
@@ -317,6 +331,13 @@ private fun CollectionScreen(
                             ) {
                                 Icon(WavedotIcons.Shuffle, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                                 Text("Shuffle", Modifier.padding(start = ButtonDefaults.IconSpacing))
+                            }
+                            IconButton(
+                                onClick = { onAddToPlaylist(collection.tracks) },
+                                enabled = collection.tracks.isNotEmpty(),
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(WavedotIcons.PlaylistAdd, contentDescription = "Add all to playlist")
                             }
                         }
                     }
@@ -341,8 +362,18 @@ private fun CollectionScreen(
                     playing = track.id == state.playingId,
                     onClick = { onIntent(SearchIntent.Play(collection.tracks, index)) },
                     onToggleFavorite = { onIntent(SearchIntent.ToggleFavorite(track)) },
+                    actions = trackActions(track, onIntent, onAddToPlaylist),
                 )
             }
         }
     }
 }
+
+private fun trackActions(
+    track: Track,
+    onIntent: (SearchIntent) -> Unit,
+    onAddToPlaylist: (List<Track>) -> Unit,
+): List<TrackAction> = listOf(
+    TrackAction("Add to playlist", WavedotIcons.PlaylistAdd) { onAddToPlaylist(listOf(track)) },
+    TrackAction("Play next", WavedotIcons.QueueMusic) { onIntent(SearchIntent.PlayNext(track)) },
+)

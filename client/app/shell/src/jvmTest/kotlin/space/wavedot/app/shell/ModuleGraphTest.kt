@@ -63,6 +63,7 @@ class ModuleGraphTest {
         koin.get<space.wavedot.feature.player.PlayerViewModel>()
         koin.get<space.wavedot.feature.player.LyricsViewModel>()
         koin.get<space.wavedot.feature.library.LibraryViewModel>()
+        koin.get<space.wavedot.feature.library.PlaylistPickerViewModel>()
         koin.get<space.wavedot.feature.search.SearchViewModel>()
         koin.get<space.wavedot.feature.settings.SettingsViewModel>()
         koin.bootstrap()

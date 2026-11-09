@@ -23,6 +23,8 @@ import space.wavedot.core.data.source.DefaultLyricsProviderRegistry
 import space.wavedot.core.data.source.DefaultMediaSourceRegistry
 import space.wavedot.core.domain.library.FavoritesRepository
 import space.wavedot.core.domain.library.LocalLibrary
+import space.wavedot.core.domain.library.PlaylistEditor
+import space.wavedot.core.domain.library.PlaylistRepository
 import space.wavedot.core.domain.library.ToggleFavorite
 import space.wavedot.core.domain.lyrics.GetLyrics
 import space.wavedot.core.domain.lyrics.LyricsCache
@@ -39,6 +41,7 @@ import space.wavedot.core.domain.update.CheckForUpdates
 import space.wavedot.core.domain.update.UpdateChecker
 import space.wavedot.core.model.AudioQuality
 import space.wavedot.feature.library.LibraryViewModel
+import space.wavedot.feature.library.PlaylistPickerViewModel
 import space.wavedot.feature.player.LyricsViewModel
 import space.wavedot.feature.player.PlayerViewModel
 import space.wavedot.feature.search.SearchViewModel
@@ -46,6 +49,7 @@ import space.wavedot.feature.settings.SettingsBackend
 import space.wavedot.feature.settings.SettingsViewModel
 import space.wavedot.infra.database.SqlFavoritesRepository
 import space.wavedot.infra.database.SqlLyricsCache
+import space.wavedot.infra.database.SqlPlaylistRepository
 import space.wavedot.infra.database.SqlSyncStateStore
 import space.wavedot.infra.hub.HubClient
 import space.wavedot.infra.hub.HubSettings
@@ -84,6 +88,8 @@ val coreModule: Module = module {
     single<LocalLibrary> { LocalLibraryAdapter(get()) }
     single { MusicFolders(get<KeyValueStore>(SETTINGS_STORE)) }
     single<FavoritesRepository> { SqlFavoritesRepository(get(), Dispatchers.IO) }
+    single<PlaylistRepository> { SqlPlaylistRepository(get(), Dispatchers.IO) }
+    factory { PlaylistEditor(get(), get()) }
     single<SyncStateStore> { SqlSyncStateStore(get(), Dispatchers.IO) }
     single { HubSettings(get(SETTINGS_STORE)) }
     single { HubClient(get(), get()) } bind SyncGateway::class
@@ -122,6 +128,7 @@ val viewModelModule: Module = module {
     viewModelOf(::PlayerViewModel)
     viewModelOf(::LyricsViewModel)
     viewModelOf(::LibraryViewModel)
+    viewModelOf(::PlaylistPickerViewModel)
     viewModel { SearchViewModel(get(), get(), get(), get(), get()) }
     viewModelOf(::SettingsViewModel)
 }

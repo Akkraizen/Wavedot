@@ -47,8 +47,10 @@ import androidx.compose.ui.unit.dp
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import space.wavedot.core.domain.player.RepeatMode
+import space.wavedot.core.model.Track
 import space.wavedot.ui.designsystem.Artwork
 import space.wavedot.ui.designsystem.FavoriteToggle
+import space.wavedot.ui.designsystem.TrackAction
 import space.wavedot.ui.designsystem.TrackListItem
 import space.wavedot.ui.designsystem.WavedotIcons
 import space.wavedot.ui.designsystem.toClock
@@ -93,6 +95,7 @@ fun PlayerBar(
     onExpand: () -> Unit,
     modifier: Modifier = Modifier,
     onShowLyrics: () -> Unit = onExpand,
+    onAddToPlaylist: (List<Track>) -> Unit = {},
 ) {
     val track = state.track ?: return
     Surface(
@@ -117,6 +120,7 @@ fun PlayerBar(
                 Spacer(Modifier.width(14.dp))
                 TrackTitles(state, Modifier.weight(1f, fill = false))
                 FavoriteToggle(state.favorite, { onIntent(PlayerIntent.ToggleFavorite) })
+                AddToPlaylistButton { onAddToPlaylist(listOf(track)) }
             }
             Column(
                 modifier = Modifier.weight(1.4f),
@@ -153,6 +157,7 @@ fun NowPlayingScreen(
     onLyricsIntent: (LyricsIntent) -> Unit,
     panel: NowPlayingPanel,
     onPanelChange: (NowPlayingPanel) -> Unit,
+    onAddToPlaylist: (List<Track>) -> Unit,
 ) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -174,9 +179,9 @@ fun NowPlayingScreen(
                 }
                 if (wide) {
                     Row(Modifier.fillMaxSize().padding(24.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                        NowPlayingHero(state, onIntent, Modifier.weight(1f).fillMaxHeight())
+                        NowPlayingHero(state, onIntent, onAddToPlaylist, Modifier.weight(1f).fillMaxHeight())
                         when (panel) {
-                            NowPlayingPanel.QUEUE -> QueuePane(state, onIntent, Modifier.weight(1f).fillMaxHeight())
+                            NowPlayingPanel.QUEUE -> QueuePane(state, onIntent, onAddToPlaylist, Modifier.weight(1f).fillMaxHeight())
                             NowPlayingPanel.LYRICS -> LyricsPane(lyrics, onLyricsIntent, Modifier.weight(1f).fillMaxHeight())
                         }
                     }
@@ -187,7 +192,7 @@ fun NowPlayingScreen(
                         TransportControls(state, onIntent, large = false)
                     }
                 } else {
-                    NowPlayingHero(state, onIntent, Modifier.fillMaxWidth().weight(1f).padding(horizontal = 24.dp))
+                    NowPlayingHero(state, onIntent, onAddToPlaylist, Modifier.fillMaxWidth().weight(1f).padding(horizontal = 24.dp))
                 }
             }
         }
@@ -219,7 +224,12 @@ private fun PanelSelector(panel: NowPlayingPanel, onPanelChange: (NowPlayingPane
 }
 
 @Composable
-private fun NowPlayingHero(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, modifier: Modifier) {
+private fun NowPlayingHero(
+    state: PlayerUiState,
+    onIntent: (PlayerIntent) -> Unit,
+    onAddToPlaylist: (List<Track>) -> Unit,
+    modifier: Modifier,
+) {
     val track = state.track ?: return
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Artwork(
@@ -254,20 +264,34 @@ private fun NowPlayingHero(state: PlayerUiState, onIntent: (PlayerIntent) -> Uni
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.widthIn(max = 520.dp)) {
             FavoriteToggle(state.favorite, { onIntent(PlayerIntent.ToggleFavorite) })
+            AddToPlaylistButton { onAddToPlaylist(listOf(track)) }
             VolumeControl(state, onIntent, Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun QueuePane(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, modifier: Modifier) {
+private fun QueuePane(
+    state: PlayerUiState,
+    onIntent: (PlayerIntent) -> Unit,
+    onAddToPlaylist: (List<Track>) -> Unit,
+    modifier: Modifier,
+) {
     Surface(modifier, shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column {
-            Text(
-                text = "Up next",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 12.dp),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Up next", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                IconButton(
+                    onClick = { onAddToPlaylist(state.queue) },
+                    enabled = state.queue.isNotEmpty(),
+                    shapes = IconButtonDefaults.shapes(),
+                ) {
+                    Icon(WavedotIcons.PlaylistAdd, contentDescription = "Save queue to playlist")
+                }
+            }
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -280,7 +304,8 @@ private fun QueuePane(state: PlayerUiState, onIntent: (PlayerIntent) -> Unit, mo
                         favorite = false,
                         playing = index == state.queuePosition,
                         onClick = { onIntent(PlayerIntent.SkipTo(index)) },
-                        onToggleFavorite = {},
+                        onToggleFavorite = null,
+                        actions = listOf(TrackAction("Add to playlist", WavedotIcons.PlaylistAdd) { onAddToPlaylist(listOf(item)) }),
                     )
                 }
             }
@@ -411,4 +436,11 @@ private fun PlayerUiState.progress(): Float {
     val total = duration?.inWholeMilliseconds ?: return 0f
     if (total <= 0) return 0f
     return (position.inWholeMilliseconds.toFloat() / total).coerceIn(0f, 1f)
+}
+
+@Composable
+private fun AddToPlaylistButton(onClick: () -> Unit) {
+    IconButton(onClick = onClick, shapes = IconButtonDefaults.shapes()) {
+        Icon(WavedotIcons.PlaylistAdd, contentDescription = "Add to playlist", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }

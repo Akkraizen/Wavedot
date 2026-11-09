@@ -28,7 +28,7 @@ All client modules are Kotlin Multiplatform with `jvm` (desktop) and Android tar
 | `core/contract` | `space.wavedot.core.contract` | **The single data contract**: `MediaSource`, `Catalog`, `Search`, `Streaming`, `RemoteLibrary`, `EntityProvider<T>`, `PagedQuery<Q, T>`, `MediaSourceRegistry` |
 | `core/plugin-api` | `space.wavedot.plugin.api` | The plugin SDK: `WavedotPlugin`, `PluginManifest`, `PluginContext`, `PluginStore`, HTTP byte-stream helper |
 | `core/playback-api` | `space.wavedot.playback.api` | Low-level playback ports: `AudioEngine`, `EngineState`, `StreamProxy` |
-| `core/domain` | `space.wavedot.core.domain` | Use cases and player logic: `PlayerController`, `PlaybackQueue`, `ResolveStream`, `SearchCatalog`, `LoadCollection`, `ToggleFavorite`, `SyncLibrary`, `CheckForUpdates`; ports `FavoritesRepository`, `LocalLibrary`, `SyncGateway`, `SyncStateStore`, `UpdateChecker` |
+| `core/domain` | `space.wavedot.core.domain` | Use cases and player logic: `PlayerController`, `PlaybackQueue`, `ResolveStream`, `SearchCatalog`, `LoadCollection`, `ToggleFavorite`, `PlaylistEditor`, `GetLyrics`, `SyncLibrary`, `CheckForUpdates`; ports `FavoritesRepository`, `PlaylistRepository`, `LyricsCache`, `LocalLibrary`, `SyncGateway`, `SyncStateStore`, `UpdateChecker` |
 | `core/data` | `space.wavedot.core.data` | `DefaultMediaSourceRegistry`, `PluginManager`, the plugin context factory |
 | `core/testing` | `space.wavedot.core.testing` | Fakes (`FakeAudioEngine`, `FakeMediaSource`, `InMemoryFavoritesRepository`, `TestRegistry`) and `MediaSourceContractTest` |
 
@@ -70,7 +70,7 @@ Every source implementation must pass `MediaSourceContractTest`.
 
 | Module | Role |
 |---|---|
-| `infra/database` | SQLDelight schema: favorites, the pending change log for sync, and the sync revision. Implements `FavoritesRepository` and `SyncStateStore` |
+| `infra/database` | SQLDelight schema: favorites, playlists, the lyrics cache, the pending change log for sync, and the sync revision. Implements `FavoritesRepository`, `PlaylistRepository`, `LyricsCache` and `SyncStateStore`. Schema changes ship as numbered `.sqm` migrations |
 | `infra/storage` | `FileKeyValueStore`, used for settings and plugin secrets |
 | `infra/network` | `createHttpClient` and `defaultHttpClient` (Ktor with OkHttp) |
 | `infra/stream-proxy` | `LoopbackStreamProxy` |
@@ -84,6 +84,7 @@ Every source implementation must pass `MediaSourceContractTest`.
 - `ui/designsystem` holds the Material 3 Expressive theme, icons and shared components. The accent color is user-selectable: presets generate a full light and dark scheme from a seed color (`color/SeedScheme.kt`, CIE LCh tonal palettes with Material 3 role tones), `System` uses Android 12+ dynamic color or the Windows accent color, and the choice is stored by `AppearanceSettings` in `app/shell`. Artwork is loaded with Coil 3: remote URLs go through the app's Ktor client, local covers are plain file paths, and the image loader is installed by `app/shell` with a disk cache in the platform cache directory.
 - Each `feature/*` module has a `ViewModel` that exposes a `StateFlow<UiState>` and accepts `Intent`s (MVI), plus stateless composables.
 - Features depend only on `core/domain` and on ports they declare themselves. For example, `SettingsBackend` lets the settings screen stay free of plugin and hub internals.
+- The library feature owns the playlist picker (`PlaylistPickerViewModel` and `PlaylistPickerSheet`). `app/shell` hosts a single picker above all screens and passes an `onAddToPlaylist` callback to the library, search and player screens, so every track list and the player open the same "Save to" sheet.
 - `app/shell` is the composition root shared by both apps. It contains the Koin modules (`wavedotModules(platformModule)`), `bootstrap()`, the adapters that implement feature ports, and `WavedotApp()`.
 - `app/android` and `app/desktop` only provide the platform module: the engine, database driver, storage locations and scanner.
 

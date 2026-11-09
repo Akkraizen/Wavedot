@@ -41,8 +41,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import space.wavedot.core.model.Track
 import space.wavedot.feature.library.LibraryScreen
 import space.wavedot.feature.library.LibraryViewModel
+import space.wavedot.feature.library.PlaylistPickerIntent
+import space.wavedot.feature.library.PlaylistPickerSheet
+import space.wavedot.feature.library.PlaylistPickerViewModel
 import space.wavedot.feature.player.MiniPlayer
 import space.wavedot.feature.player.LyricsViewModel
 import space.wavedot.feature.player.NowPlayingPanel
@@ -83,6 +87,9 @@ fun WavedotApp(
         var nowPlayingPanel by rememberSaveable { mutableStateOf(NowPlayingPanel.QUEUE) }
         val lyricsViewModel = koinViewModel<LyricsViewModel>()
         val lyricsState by lyricsViewModel.state.collectAsStateWithLifecycle()
+        val pickerViewModel = koinViewModel<PlaylistPickerViewModel>()
+        val pickerState by pickerViewModel.state.collectAsStateWithLifecycle()
+        val addToPlaylist: (List<Track>) -> Unit = { pickerViewModel.onIntent(PlaylistPickerIntent.Open(it)) }
 
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainer) {
             Column(Modifier.fillMaxSize()) {
@@ -95,6 +102,7 @@ fun WavedotApp(
                             playerState = playerState,
                             onPlayerIntent = playerViewModel::onIntent,
                             onExpandPlayer = { nowPlayingOpen = true },
+                            onAddToPlaylist = addToPlaylist,
                         )
                         NavigationLayout.SIDE_RAIL -> ExpandedLayout(
                             destination = destination,
@@ -106,6 +114,7 @@ fun WavedotApp(
                                 nowPlayingPanel = NowPlayingPanel.LYRICS
                                 nowPlayingOpen = true
                             },
+                            onAddToPlaylist = addToPlaylist,
                         )
                     }
                     NowPlayingOverlay(nowPlayingOpen) {
@@ -117,8 +126,10 @@ fun WavedotApp(
                             onLyricsIntent = lyricsViewModel::onIntent,
                             panel = nowPlayingPanel,
                             onPanelChange = { nowPlayingPanel = it },
+                            onAddToPlaylist = addToPlaylist,
                         )
                     }
+                    PlaylistPickerSheet(pickerState, pickerViewModel::onIntent)
                 }
             }
         }
@@ -145,6 +156,7 @@ private fun CompactLayout(
     playerState: PlayerUiState,
     onPlayerIntent: (PlayerIntent) -> Unit,
     onExpandPlayer: () -> Unit,
+    onAddToPlaylist: (List<Track>) -> Unit,
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -165,7 +177,7 @@ private fun CompactLayout(
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
-            DestinationContent(destination)
+            DestinationContent(destination, onAddToPlaylist)
         }
     }
 }
@@ -178,6 +190,7 @@ private fun ExpandedLayout(
     onPlayerIntent: (PlayerIntent) -> Unit,
     onExpandPlayer: () -> Unit,
     onShowLyrics: () -> Unit,
+    onAddToPlaylist: (List<Track>) -> Unit,
 ) {
     val railState = rememberWideNavigationRailState(WideNavigationRailValue.Collapsed)
     val enterSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -224,26 +237,32 @@ private fun ExpandedLayout(
                     targetState = destination,
                     transitionSpec = { fadeIn(enterSpec) togetherWith fadeOut(exitSpec) },
                 ) { target ->
-                    DestinationContent(target)
+                    DestinationContent(target, onAddToPlaylist)
                 }
             }
         }
-        PlayerBar(playerState, onPlayerIntent, onExpand = onExpandPlayer, onShowLyrics = onShowLyrics)
+        PlayerBar(
+            state = playerState,
+            onIntent = onPlayerIntent,
+            onExpand = onExpandPlayer,
+            onShowLyrics = onShowLyrics,
+            onAddToPlaylist = onAddToPlaylist,
+        )
     }
 }
 
 @Composable
-private fun DestinationContent(destination: Destination) {
+private fun DestinationContent(destination: Destination, onAddToPlaylist: (List<Track>) -> Unit) {
     when (destination) {
         Destination.LIBRARY -> {
             val viewModel = koinViewModel<LibraryViewModel>()
             val state by viewModel.state.collectAsStateWithLifecycle()
-            LibraryScreen(state, viewModel::onIntent)
+            LibraryScreen(state, viewModel::onIntent, onAddToPlaylist)
         }
         Destination.SEARCH -> {
             val viewModel = koinViewModel<SearchViewModel>()
             val state by viewModel.state.collectAsStateWithLifecycle()
-            SearchScreen(state, viewModel::onIntent)
+            SearchScreen(state, viewModel::onIntent, onAddToPlaylist)
         }
         Destination.SETTINGS -> {
             val viewModel = koinViewModel<SettingsViewModel>()

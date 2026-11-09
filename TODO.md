@@ -15,7 +15,10 @@
 
 - [ ] Favorites: two-way sync with each source's likes. Today, likes are imported and local toggles are mirrored, but removals made on the remote side are not detected.
 - [ ] Cross-source matching: resolve the same track across sources (ISRC, title/artist/duration).
-- [ ] Playlists: local playlists, playlists imported from sources, sync through the hub.
+- [x] Local playlists: the library is a list of playlists (Favorites, On this device, user playlists); add tracks, albums or the queue from any track menu or the player.
+- [ ] Playlists: drag-and-drop reordering.
+- [ ] Playlists: import playlists from sources (a `Playlists` capability on `MediaSource`).
+- [ ] Playlists: sync through the hub (`playlists` collection).
 - [ ] Listening history and statistics, synced through the hub (`history` collection).
 - [ ] Persist the local file index in the database instead of rescanning on every start; watch folders for changes.
 - [x] Artwork loading and caching (Coil 3), embedded and folder covers for local files, MediaStore album art on Android.

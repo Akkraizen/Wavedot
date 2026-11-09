@@ -1,0 +1,85 @@
+CREATE TABLE playlist (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE playlist_track (
+    playlist_id TEXT NOT NULL,
+    media_id TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    artists TEXT NOT NULL,
+    album TEXT,
+    duration_ms INTEGER,
+    artwork_url TEXT,
+    added_at INTEGER NOT NULL,
+    PRIMARY KEY (playlist_id, media_id)
+);
+
+CREATE INDEX playlist_track_order ON playlist_track(playlist_id, position);
+
+CREATE INDEX playlist_track_media ON playlist_track(media_id);
+
+selectSummaries:
+SELECT p.id, p.title, p.created_at, p.updated_at,
+    COUNT(t.media_id) AS track_count,
+    CAST(COALESCE(SUM(t.duration_ms), 0) AS INTEGER) AS duration_ms
+FROM playlist p
+LEFT JOIN playlist_track t ON t.playlist_id = p.id
+GROUP BY p.id
+ORDER BY p.updated_at DESC, p.created_at DESC;
+
+selectCovers:
+SELECT playlist_id, artwork_url FROM playlist_track
+WHERE artwork_url IS NOT NULL
+ORDER BY playlist_id, position;
+
+selectSummary:
+SELECT p.id, p.title, p.created_at, p.updated_at,
+    COUNT(t.media_id) AS track_count,
+    CAST(COALESCE(SUM(t.duration_ms), 0) AS INTEGER) AS duration_ms
+FROM playlist p
+LEFT JOIN playlist_track t ON t.playlist_id = p.id
+WHERE p.id = ?
+GROUP BY p.id;
+
+selectEntries:
+SELECT * FROM playlist_track WHERE playlist_id = ? ORDER BY position;
+
+exists:
+SELECT COUNT(*) FROM playlist WHERE id = ?;
+
+countContaining:
+SELECT playlist_id, COUNT(*) AS contained FROM playlist_track
+WHERE media_id IN ?
+GROUP BY playlist_id;
+
+selectContained:
+SELECT media_id FROM playlist_track WHERE playlist_id = ? AND media_id IN ?;
+
+maxPosition:
+SELECT MAX(position) AS position FROM playlist_track WHERE playlist_id = ?;
+
+insertPlaylist:
+INSERT INTO playlist(id, title, created_at, updated_at) VALUES (?, ?, ?, ?);
+
+rename:
+UPDATE playlist SET title = ?, updated_at = ? WHERE id = ?;
+
+touch:
+UPDATE playlist SET updated_at = ? WHERE id = ?;
+
+deletePlaylist:
+DELETE FROM playlist WHERE id = ?;
+
+deleteAllEntries:
+DELETE FROM playlist_track WHERE playlist_id = ?;
+
+insertEntry:
+INSERT OR IGNORE INTO playlist_track(playlist_id, media_id, position, title, artists, album, duration_ms, artwork_url, added_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteEntries:
+DELETE FROM playlist_track WHERE playlist_id = ? AND media_id IN ?;

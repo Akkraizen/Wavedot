@@ -1,0 +1,27 @@
+CREATE TABLE playlist (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+
+CREATE TABLE playlist_track (
+    playlist_id TEXT NOT NULL,
+    media_id TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    artists TEXT NOT NULL,
+    album TEXT,
+    duration_ms INTEGER,
+    artwork_url TEXT,
+    added_at INTEGER NOT NULL,
+    PRIMARY KEY (playlist_id, media_id)
+);
+
+
+CREATE INDEX playlist_track_order ON playlist_track(playlist_id, position);
+
+
+CREATE INDEX playlist_track_media ON playlist_track(media_id);
+

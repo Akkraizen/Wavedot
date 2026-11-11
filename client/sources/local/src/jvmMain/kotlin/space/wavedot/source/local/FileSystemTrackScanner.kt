@@ -10,8 +10,6 @@ import space.wavedot.core.model.Artwork
 import space.wavedot.core.model.Track
 import java.io.File
 import java.security.MessageDigest
-import java.util.logging.Level
-import java.util.logging.Logger
 import kotlin.time.Duration.Companion.seconds
 
 class FileSystemTrackScanner(
@@ -19,7 +17,7 @@ class FileSystemTrackScanner(
     private val roots: suspend () -> List<File>,
 ) : LocalTrackScanner {
     init {
-        Logger.getLogger("org.jaudiotagger").level = Level.OFF
+        TagLibraryLogging.quiet()
     }
 
     override suspend fun scan(): List<LocalTrack> = withContext(Dispatchers.IO) {

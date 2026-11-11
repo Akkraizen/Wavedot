@@ -12,7 +12,10 @@ data class PluginManifest(
     val description: String = "",
     val apiVersion: Int = PLUGIN_API_VERSION,
     val settings: List<PluginSettingSpec> = emptyList(),
+    val features: Set<PluginFeature> = setOf(PluginFeature.SOURCES),
 )
+
+enum class PluginFeature { SOURCES, LYRICS }
 
 data class PluginSettingSpec(
     val key: String,

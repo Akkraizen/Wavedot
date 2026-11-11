@@ -25,7 +25,8 @@ The lifecycle works like this:
 1. `PluginManager.loadAll()` runs at startup.
 2. For each plugin, the manager checks `apiVersion`, builds a `PluginContext` and calls `onLoad`. The returned sources are registered in the `MediaSourceRegistry`.
 3. If loading fails, the plugin is marked `Failed` with a reason, and the rest of the app keeps working.
-4. When the user saves a setting declared in the manifest, the host stores it (secrets separately) and reloads the plugin. Settings show their current value in Settings; secrets only show that a value is saved. `PluginSettingSpec.hint` is shown as a placeholder.
+4. Settings lists plugins under Settings → Plugins, grouped by `PluginManifest.features`: a plugin with `SOURCES` appears under Sources, a lyrics-only plugin (`LYRICS`) under Lyrics. The default is `SOURCES`.
+5. When the user saves a setting declared in the manifest, the host stores it (secrets separately) and reloads the plugin. Settings show their current value in Settings; secrets only show that a value is saved. `PluginSettingSpec.hint` is shown as a placeholder.
 
 `PluginContext` provides:
 

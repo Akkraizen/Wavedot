@@ -11,10 +11,12 @@ import space.wavedot.core.domain.sync.SyncLibrary
 import space.wavedot.core.domain.sync.SyncReport
 import space.wavedot.core.domain.update.AvailableUpdate
 import space.wavedot.core.domain.update.CheckForUpdates
+import space.wavedot.feature.settings.PluginGroup
 import space.wavedot.feature.settings.PluginInfo
 import space.wavedot.feature.settings.PluginSecretField
 import space.wavedot.feature.settings.SettingsBackend
 import space.wavedot.infra.hub.HubClient
+import space.wavedot.plugin.api.PluginFeature
 import space.wavedot.infra.hub.HubSettings
 import space.wavedot.ui.designsystem.color.isSystemAccentSupported
 
@@ -53,6 +55,7 @@ class DefaultSettingsBackend(
                     PluginStatus.Unloaded -> "Disabled"
                 },
                 active = status is PluginStatus.Loaded && !status.contributesNothing,
+                group = if (PluginFeature.SOURCES in entry.manifest.features) PluginGroup.SOURCES else PluginGroup.LYRICS,
                 fields = entry.manifest.settings.map { spec ->
                     val stored = store(entry.manifest.id, spec.secret).get(spec.key)
                     PluginSecretField(

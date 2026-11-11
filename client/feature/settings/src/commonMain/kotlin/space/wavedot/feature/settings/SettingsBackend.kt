@@ -13,6 +13,8 @@ data class PluginSecretField(
     val configured: Boolean = false,
 )
 
+enum class PluginGroup { SOURCES, LYRICS }
+
 data class PluginInfo(
     val id: String,
     val name: String,
@@ -20,6 +22,7 @@ data class PluginInfo(
     val status: String,
     val active: Boolean,
     val fields: List<PluginSecretField>,
+    val group: PluginGroup = PluginGroup.SOURCES,
 )
 
 interface SettingsBackend {

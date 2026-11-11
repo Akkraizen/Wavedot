@@ -72,5 +72,8 @@ class ModuleGraphTest {
         entries.forEach { assertIs<PluginStatus.Loaded>(it.status) }
         assertEquals(listOf("lrclib"), koin.get<space.wavedot.core.contract.LyricsProviderRegistry>().providers.value.map { it.id })
         assertEquals(listOf("local", "audius", "radio"), koin.get<MediaSourceRegistry>().sources.value.map { it.descriptor.id.value })
+        val groups = koin.get<SettingsBackend>().plugins.first().associate { it.id to it.group }
+        assertEquals(space.wavedot.feature.settings.PluginGroup.LYRICS, groups["lrclib"])
+        assertEquals(space.wavedot.feature.settings.PluginGroup.SOURCES, groups["yandex-music"])
     }
 }

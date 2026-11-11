@@ -23,7 +23,17 @@ data class SettingsUiState(
     val message: String? = null,
     val accentId: String = Accents.Default.id,
     val accents: List<AccentColor> = Accents.presets,
-)
+    val section: SettingsSection? = null,
+) {
+    val sections: List<SettingsSection>
+        get() = SettingsSection.entries.filter { it != SettingsSection.LIBRARY || musicFolders != null }
+
+    val accentName: String get() = accents.firstOrNull { it.id == accentId }?.name.orEmpty()
+
+    val sourcePlugins: List<PluginInfo> get() = plugins.filter { it.group == PluginGroup.SOURCES }
+
+    val lyricsPlugins: List<PluginInfo> get() = plugins.filter { it.group == PluginGroup.LYRICS }
+}
 
 sealed interface SettingsIntent {
     data class SavePluginValue(val pluginId: String, val key: String, val value: String) : SettingsIntent
@@ -35,11 +45,14 @@ sealed interface SettingsIntent {
     data class RemoveFolder(val path: String) : SettingsIntent
     data object DismissMessage : SettingsIntent
     data class SelectAccent(val id: String) : SettingsIntent
+    data class OpenSection(val section: SettingsSection) : SettingsIntent
+    data object CloseSection : SettingsIntent
 }
 
 class SettingsViewModel(private val backend: SettingsBackend) : ViewModel() {
     private val busy = MutableStateFlow(false)
     private val message = MutableStateFlow<String?>(null)
+    private val section = MutableStateFlow<SettingsSection?>(null)
 
     private val accents = Accents.available(backend.systemAccentAvailable)
 
@@ -54,8 +67,9 @@ class SettingsViewModel(private val backend: SettingsBackend) : ViewModel() {
             SettingsUiState(plugins, hub, folders, backend.appVersion, isBusy, text, accents = accents)
         },
         backend.accentId,
-    ) { state, accent ->
-        state.copy(accentId = accent)
+        section,
+    ) { state, accent, opened ->
+        state.copy(accentId = accent, section = opened?.takeIf { it in state.sections })
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -91,6 +105,8 @@ class SettingsViewModel(private val backend: SettingsBackend) : ViewModel() {
             }
             SettingsIntent.DismissMessage -> message.value = null
             is SettingsIntent.SelectAccent -> viewModelScope.launch { backend.setAccent(intent.id) }
+            is SettingsIntent.OpenSection -> section.value = intent.section
+            SettingsIntent.CloseSection -> section.value = null
         }
     }
 

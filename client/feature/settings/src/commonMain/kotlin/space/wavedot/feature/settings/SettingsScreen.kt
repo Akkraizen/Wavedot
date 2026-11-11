@@ -7,6 +7,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -69,50 +74,165 @@ fun SettingsScreen(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit, m
         snackbar.showSnackbar(message)
         onIntent(SettingsIntent.DismissMessage)
     }
-    Box(modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 32.dp),
-        ) {
-            ScreenHeader(title = "Settings") {
-                if (state.busy) LoadingIndicator(Modifier.size(32.dp))
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val wide = maxWidth >= TWO_PANE_WIDTH
+        val opened = state.section
+        when {
+            wide -> Row(Modifier.fillMaxSize()) {
+                val selected = opened ?: state.sections.first()
+                SectionList(state, selected, onIntent, Modifier.width(340.dp).fillMaxHeight())
+                SectionPane(selected, state, onIntent, showBack = false, modifier = Modifier.weight(1f).fillMaxHeight())
             }
-            Column(Modifier.padding(horizontal = 16.dp).widthIn(max = 840.dp)) {
-                SectionHeader("Appearance", Modifier.padding(start = 8.dp))
-                AccentPicker(state.accents, state.accentId) { onIntent(SettingsIntent.SelectAccent(it)) }
+            opened == null -> SectionList(state, null, onIntent, Modifier.fillMaxSize())
+            else -> SectionPane(opened, state, onIntent, showBack = true, modifier = Modifier.fillMaxSize())
+        }
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(16.dp))
+    }
+}
 
-                SectionHeader("Sources", Modifier.padding(start = 8.dp))
-                SegmentedGroup(state.plugins) { plugin, index, count -> PluginItem(plugin, index, count, onIntent) }
+private val TWO_PANE_WIDTH = 760.dp
 
-                state.musicFolders?.let { folders ->
-                    SectionHeader("Music folders", Modifier.padding(start = 8.dp))
-                    FoldersGroup(folders, state.busy, onIntent)
-                }
-
-                SectionHeader("Sync", Modifier.padding(start = 8.dp))
-                SyncGroup(state, onIntent)
-
-                SectionHeader("About", Modifier.padding(start = 8.dp))
+@Composable
+private fun SectionList(
+    state: SettingsUiState,
+    selected: SettingsSection?,
+    onIntent: (SettingsIntent) -> Unit,
+    modifier: Modifier,
+) {
+    Column(modifier.verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
+        ScreenHeader(title = "Settings") {
+            if (state.busy && selected == null) LoadingIndicator(Modifier.size(32.dp))
+        }
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(SegmentGap)) {
+            state.sections.forEachIndexed { index, section ->
+                val isSelected = section == selected
                 SegmentedListItem(
-                    onClick = { onIntent(SettingsIntent.CheckUpdates) },
-                    shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
-                    colors = segmentedItemColors(),
-                    leadingContent = { WavedotLogo(40.dp) },
-                    supportingContent = { Text("Version ${state.appVersion}") },
-                    trailingContent = {
-                        FilledTonalButton(onClick = { onIntent(SettingsIntent.CheckUpdates) }, enabled = !state.busy) {
-                            Icon(WavedotIcons.SystemUpdateAlt, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                            Text("Check for updates", Modifier.padding(start = ButtonDefaults.IconSpacing))
-                        }
+                    onClick = { onIntent(SettingsIntent.OpenSection(section)) },
+                    shapes = ListItemDefaults.segmentedShapes(index = index, count = state.sections.size),
+                    colors = ListItemDefaults.segmentedColors(
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                    ),
+                    leadingContent = { ShapedIcon(section.icon) },
+                    supportingContent = { Text(section.summary(state)) },
+                    trailingContent = if (selected == null) {
+                        { Icon(WavedotIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    } else {
+                        null
                     },
                 ) {
-                    Text("Wavedot")
+                    Text(section.title)
                 }
             }
         }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(16.dp))
+    }
+}
+
+private val SettingsSection.icon: ImageVector
+    get() = when (this) {
+        SettingsSection.APPEARANCE -> WavedotIcons.PaletteFilled
+        SettingsSection.PLUGINS -> WavedotIcons.ExtensionFilled
+        SettingsSection.LIBRARY -> WavedotIcons.FolderFilled
+        SettingsSection.SYNC -> WavedotIcons.Sync
+        SettingsSection.ABOUT -> WavedotIcons.InfoFilled
+    }
+
+private fun SettingsSection.summary(state: SettingsUiState): String = when (this) {
+    SettingsSection.APPEARANCE -> "Accent color: ${state.accentName}"
+    SettingsSection.PLUGINS -> {
+        val active = state.plugins.count { it.active }
+        "$active of ${state.plugins.size} active"
+    }
+    SettingsSection.LIBRARY -> when (val count = state.musicFolders.orEmpty().size) {
+        0 -> "No music folders"
+        1 -> "1 music folder"
+        else -> "$count music folders"
+    }
+    SettingsSection.SYNC -> if (state.hubConnected) "Connected to a hub" else "Not connected"
+    SettingsSection.ABOUT -> "Version ${state.appVersion} · updates"
+}
+
+@Composable
+private fun SectionPane(
+    section: SettingsSection,
+    state: SettingsUiState,
+    onIntent: (SettingsIntent) -> Unit,
+    showBack: Boolean,
+    modifier: Modifier,
+) {
+    Column(modifier.verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (showBack) {
+                FilledTonalIconButton(onClick = { onIntent(SettingsIntent.CloseSection) }, shapes = IconButtonDefaults.shapes()) {
+                    Icon(WavedotIcons.ArrowBack, contentDescription = "Back")
+                }
+                Spacer(Modifier.width(12.dp))
+            } else {
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(section.title, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+            if (state.busy) LoadingIndicator(Modifier.size(32.dp))
+        }
+        Column(Modifier.padding(horizontal = 16.dp).widthIn(max = 760.dp)) {
+            when (section) {
+                SettingsSection.APPEARANCE -> {
+                    Spacer(Modifier.height(12.dp))
+                    AccentPicker(state.accents, state.accentId) { onIntent(SettingsIntent.SelectAccent(it)) }
+                }
+                SettingsSection.PLUGINS -> PluginsSection(state, onIntent)
+                SettingsSection.LIBRARY -> {
+                    SectionHeader("Music folders", Modifier.padding(start = 8.dp))
+                    FoldersGroup(state.musicFolders.orEmpty(), state.busy, onIntent)
+                }
+                SettingsSection.SYNC -> {
+                    Spacer(Modifier.height(12.dp))
+                    SyncGroup(state, onIntent)
+                }
+                SettingsSection.ABOUT -> {
+                    Spacer(Modifier.height(12.dp))
+                    AboutItem(state, onIntent)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PluginsSection(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit) {
+    Text(
+        text = "Plugins add music sources and lyrics. Expand a plugin to set it up.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 8.dp, top = 4.dp),
+    )
+    if (state.sourcePlugins.isNotEmpty()) {
+        SectionHeader("Sources", Modifier.padding(start = 8.dp))
+        SegmentedGroup(state.sourcePlugins) { plugin, index, count -> PluginItem(plugin, index, count, onIntent) }
+    }
+    if (state.lyricsPlugins.isNotEmpty()) {
+        SectionHeader("Lyrics", Modifier.padding(start = 8.dp))
+        SegmentedGroup(state.lyricsPlugins) { plugin, index, count -> PluginItem(plugin, index, count, onIntent) }
+    }
+}
+
+@Composable
+private fun AboutItem(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit) {
+    SegmentedListItem(
+        onClick = { onIntent(SettingsIntent.CheckUpdates) },
+        shapes = ListItemDefaults.segmentedShapes(index = 0, count = 1),
+        colors = segmentedItemColors(),
+        leadingContent = { WavedotLogo(40.dp) },
+        supportingContent = { Text("Version ${state.appVersion}") },
+        trailingContent = {
+            FilledTonalButton(onClick = { onIntent(SettingsIntent.CheckUpdates) }, enabled = !state.busy) {
+                Icon(WavedotIcons.SystemUpdateAlt, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                Text("Check for updates", Modifier.padding(start = ButtonDefaults.IconSpacing))
+            }
+        },
+    ) {
+        Text("Wavedot")
     }
 }
 

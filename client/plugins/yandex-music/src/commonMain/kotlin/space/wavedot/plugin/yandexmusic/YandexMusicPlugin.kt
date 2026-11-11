@@ -5,6 +5,7 @@ import space.wavedot.core.common.TimeProvider
 import space.wavedot.core.common.info
 import space.wavedot.plugin.api.PluginContext
 import space.wavedot.plugin.api.PluginContribution
+import space.wavedot.plugin.api.PluginFeature
 import space.wavedot.plugin.api.PluginManifest
 import space.wavedot.plugin.api.PluginSettingSpec
 import space.wavedot.plugin.api.WavedotPlugin
@@ -22,6 +23,7 @@ class YandexMusicPlugin(
         version = "0.1.0",
         description = "Streams tracks, search and likes from Yandex Music using your own account token.",
         settings = listOf(PluginSettingSpec(TOKEN_KEY, "OAuth token", secret = true)),
+        features = setOf(PluginFeature.SOURCES, PluginFeature.LYRICS),
     )
 
     override suspend fun onLoad(context: PluginContext): PluginContribution {

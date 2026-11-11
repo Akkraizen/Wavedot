@@ -62,11 +62,11 @@ if (!serverOnly) include(
 )
 
 if (!serverOnly) include(
-    ":client:ui:designsystem",
-    ":client:feature:player",
-    ":client:feature:library",
-    ":client:feature:search",
-    ":client:feature:settings",
+    ":client:presentation:player",
+    ":client:presentation:library",
+    ":client:presentation:search",
+    ":client:presentation:settings",
+    ":client:ui",
     ":client:app:shell",
     ":client:app:android",
     ":client:app:desktop",

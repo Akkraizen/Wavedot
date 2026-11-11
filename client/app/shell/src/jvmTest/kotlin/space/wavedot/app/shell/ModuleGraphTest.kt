@@ -15,16 +15,23 @@ import space.wavedot.core.contract.MediaSourceRegistry
 import space.wavedot.core.data.plugin.PluginManager
 import space.wavedot.core.data.plugin.PluginStatus
 import space.wavedot.core.domain.update.AppInfo
-import space.wavedot.feature.settings.SettingsBackend
+import space.wavedot.core.testing.FakeAudioEngine
+import space.wavedot.core.testing.TestTracks
 import space.wavedot.infra.database.createJvmDatabase
 import space.wavedot.infra.updater.UpdateTarget
 import space.wavedot.playback.api.AudioEngine
+import space.wavedot.presentation.library.LibraryViewModel
+import space.wavedot.presentation.library.PlaylistPickerViewModel
+import space.wavedot.presentation.player.LyricsViewModel
+import space.wavedot.presentation.player.PlayerViewModel
+import space.wavedot.presentation.search.SearchViewModel
+import space.wavedot.presentation.settings.PluginGroup
+import space.wavedot.presentation.settings.SettingsBackend
+import space.wavedot.presentation.settings.SettingsViewModel
 import space.wavedot.protocol.core.ArchDto
 import space.wavedot.protocol.core.PlatformDto
 import space.wavedot.source.local.LocalTrack
 import space.wavedot.source.local.LocalTrackScanner
-import space.wavedot.core.testing.FakeAudioEngine
-import space.wavedot.core.testing.TestTracks
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -60,12 +67,13 @@ class ModuleGraphTest {
     fun graphResolvesAndBootstraps() = runBlocking {
         val koin = koinApplication { modules(wavedotModules(testPlatform)) }.koin
         koin.get<SettingsBackend>()
-        koin.get<space.wavedot.feature.player.PlayerViewModel>()
-        koin.get<space.wavedot.feature.player.LyricsViewModel>()
-        koin.get<space.wavedot.feature.library.LibraryViewModel>()
-        koin.get<space.wavedot.feature.library.PlaylistPickerViewModel>()
-        koin.get<space.wavedot.feature.search.SearchViewModel>()
-        koin.get<space.wavedot.feature.settings.SettingsViewModel>()
+        koin.get<space.wavedot.presentation.player.PlayerViewModel>()
+        koin.get<space.wavedot.presentation.player.LyricsViewModel>()
+        koin.get<space.wavedot.presentation.library.LibraryViewModel>()
+        koin.get<space.wavedot.presentation.library.PlaylistPickerViewModel>()
+        koin.get<space.wavedot.presentation.search.SearchViewModel>()
+        koin.get<space.wavedot.presentation.settings.SettingsViewModel>()
+        koin.get<space.wavedot.presentation.settings.AppearanceViewModel>()
         koin.bootstrap()
         val manager = koin.get<PluginManager>()
         val entries = withTimeout(5_000) { manager.entries.first { list -> list.all { it.status != PluginStatus.Unloaded } } }
@@ -73,7 +81,7 @@ class ModuleGraphTest {
         assertEquals(listOf("lrclib"), koin.get<space.wavedot.core.contract.LyricsProviderRegistry>().providers.value.map { it.id })
         assertEquals(listOf("local", "audius", "radio"), koin.get<MediaSourceRegistry>().sources.value.map { it.descriptor.id.value })
         val groups = koin.get<SettingsBackend>().plugins.first().associate { it.id to it.group }
-        assertEquals(space.wavedot.feature.settings.PluginGroup.LYRICS, groups["lrclib"])
-        assertEquals(space.wavedot.feature.settings.PluginGroup.SOURCES, groups["yandex-music"])
+        assertEquals(space.wavedot.presentation.settings.PluginGroup.LYRICS, groups["lrclib"])
+        assertEquals(space.wavedot.presentation.settings.PluginGroup.SOURCES, groups["yandex-music"])
     }
 }

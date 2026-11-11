@@ -11,14 +11,13 @@ import space.wavedot.core.domain.sync.SyncLibrary
 import space.wavedot.core.domain.sync.SyncReport
 import space.wavedot.core.domain.update.AvailableUpdate
 import space.wavedot.core.domain.update.CheckForUpdates
-import space.wavedot.feature.settings.PluginGroup
-import space.wavedot.feature.settings.PluginInfo
-import space.wavedot.feature.settings.PluginSecretField
-import space.wavedot.feature.settings.SettingsBackend
 import space.wavedot.infra.hub.HubClient
-import space.wavedot.plugin.api.PluginFeature
 import space.wavedot.infra.hub.HubSettings
-import space.wavedot.ui.designsystem.color.isSystemAccentSupported
+import space.wavedot.plugin.api.PluginFeature
+import space.wavedot.presentation.settings.PluginGroup
+import space.wavedot.presentation.settings.PluginInfo
+import space.wavedot.presentation.settings.PluginSecretField
+import space.wavedot.presentation.settings.SettingsBackend
 
 private val PluginStatus.Loaded.contributesNothing: Boolean
     get() = sources.isEmpty() && lyricsProviders.isEmpty()
@@ -82,9 +81,8 @@ class DefaultSettingsBackend(
 
     override val appVersion: String = environment.app.version
 
-    override val accentId: Flow<String> = appearance.accentId
+    override val accentId: Flow<String?> = appearance.accentId
 
-    override val systemAccentAvailable: Boolean = isSystemAccentSupported()
 
     override suspend fun setAccent(id: String) = appearance.setAccent(id)
 

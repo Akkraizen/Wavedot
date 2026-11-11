@@ -18,7 +18,7 @@ kotlin {
 
 dependencies {
     implementation(projects.client.app.shell)
-    implementation(projects.client.ui.designsystem)
+    implementation(projects.client.ui)
     implementation(libs.compose.material3)
     implementation(projects.client.infra.network)
     implementation(projects.client.infra.storage)

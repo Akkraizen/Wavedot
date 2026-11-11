@@ -23,6 +23,7 @@ android {
 
 dependencies {
     implementation(projects.client.app.shell)
+    implementation(projects.client.ui)
     implementation(projects.client.infra.network)
     implementation(projects.client.infra.storage)
     implementation(projects.client.infra.streamProxy)

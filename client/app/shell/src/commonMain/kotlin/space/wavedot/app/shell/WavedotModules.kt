@@ -40,13 +40,6 @@ import space.wavedot.core.domain.sync.SyncStateStore
 import space.wavedot.core.domain.update.CheckForUpdates
 import space.wavedot.core.domain.update.UpdateChecker
 import space.wavedot.core.model.AudioQuality
-import space.wavedot.feature.library.LibraryViewModel
-import space.wavedot.feature.library.PlaylistPickerViewModel
-import space.wavedot.feature.player.LyricsViewModel
-import space.wavedot.feature.player.PlayerViewModel
-import space.wavedot.feature.search.SearchViewModel
-import space.wavedot.feature.settings.SettingsBackend
-import space.wavedot.feature.settings.SettingsViewModel
 import space.wavedot.infra.database.SqlFavoritesRepository
 import space.wavedot.infra.database.SqlLyricsCache
 import space.wavedot.infra.database.SqlPlaylistRepository
@@ -60,6 +53,14 @@ import space.wavedot.plugin.lrclib.LrclibPlugin
 import space.wavedot.plugin.radiobrowser.RadioBrowserPlugin
 import space.wavedot.plugin.subsonic.SubsonicPlugin
 import space.wavedot.plugin.yandexmusic.YandexMusicPlugin
+import space.wavedot.presentation.library.LibraryViewModel
+import space.wavedot.presentation.library.PlaylistPickerViewModel
+import space.wavedot.presentation.player.LyricsViewModel
+import space.wavedot.presentation.player.PlayerViewModel
+import space.wavedot.presentation.search.SearchViewModel
+import space.wavedot.presentation.settings.AppearanceViewModel
+import space.wavedot.presentation.settings.SettingsBackend
+import space.wavedot.presentation.settings.SettingsViewModel
 import space.wavedot.source.local.LocalMediaSource
 
 val APP_SCOPE = named("appScope")
@@ -136,6 +137,7 @@ val viewModelModule: Module = module {
     viewModelOf(::PlaylistPickerViewModel)
     viewModel { SearchViewModel(get(), get(), get(), get(), get()) }
     viewModelOf(::SettingsViewModel)
+    viewModelOf(::AppearanceViewModel)
 }
 
 fun wavedotModules(platform: Module): List<Module> = listOf(platform, builtInPluginsModule, coreModule, viewModelModule)

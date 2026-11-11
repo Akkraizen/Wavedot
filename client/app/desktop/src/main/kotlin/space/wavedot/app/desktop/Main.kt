@@ -11,13 +11,17 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import org.koin.core.context.startKoin
-import space.wavedot.app.shell.NavigationLayout
-import space.wavedot.app.shell.WavedotApp
+import space.wavedot.app.shell.PlatformEnvironment
 import space.wavedot.app.shell.bootstrap
 import space.wavedot.app.shell.wavedotModules
 import space.wavedot.playback.api.AudioEngine
 import space.wavedot.playback.api.StreamProxy
+import space.wavedot.ui.app.NavigationLayout
+import space.wavedot.ui.app.WavedotApp
 import space.wavedot.ui.designsystem.wavedotLogoVector
+import space.wavedot.ui.window.WavedotTitleBar
+import space.wavedot.ui.window.WindowController
+import space.wavedot.ui.window.WindowResizeEdges
 import java.awt.Dimension
 
 fun main() {
@@ -40,6 +44,8 @@ fun main() {
             val controller = remember(window) { WindowController(window) }
             Box(Modifier.fillMaxSize()) {
                 WavedotApp(
+                    httpClient = koin.get(),
+                    imageCacheDirectory = koin.get<PlatformEnvironment>().cacheDirectory,
                     navigationLayout = NavigationLayout.SIDE_RAIL,
                     titleBar = { WavedotTitleBar(controller, onClose = shutdown) },
                 )

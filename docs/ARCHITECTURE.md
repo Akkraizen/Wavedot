@@ -4,7 +4,9 @@ Wavedot is one Gradle build with three top-level areas: `client/`, `server/` and
 
 ```
               ┌──────────── client ────────────┐        ┌──────────── server ─────────────┐
- UI           │ feature/*  ui/designsystem     │        │ hub/api        updates/api      │  transport
+ UI           │ ui                             │        │ hub/api        updates/api      │  transport
+              │        │                       │        │    │               │            │
+ presentation │ presentation/*                 │        │                                 │  ViewModels
               │        │                       │        │    │               │            │
  domain       │ core/domain ── core/contract   │        │ hub/domain     updates/domain   │  pure Kotlin
               │        │          │            │        │    │               │            │
@@ -83,15 +85,24 @@ Every source implementation must pass `MediaSourceContractTest`.
 | `plugins/radio-browser` | Internet radio stations from the Radio Browser directory (`SourceKind.RADIO`) |
 | `plugins/lrclib` | Lyrics from LRCLIB |
 
-### UI
+### Presentation and UI
 
-- `ui/designsystem` holds the Material 3 Expressive theme, icons and shared components. The accent color is user-selectable: presets generate a full light and dark scheme from a seed color (`color/SeedScheme.kt`, CIE LCh tonal palettes with Material 3 role tones), `System` uses Android 12+ dynamic color or the Windows accent color, and the choice is stored by `AppearanceSettings` in `app/shell`. Artwork is loaded with Coil 3: remote URLs go through the app's Ktor client, local covers are plain file paths, and the image loader is installed by `app/shell` with a disk cache in the platform cache directory.
-- Each `feature/*` module has a `ViewModel` that exposes a `StateFlow<UiState>` and accepts `Intent`s (MVI), plus stateless composables.
-- Features depend only on `core/domain` and on ports they declare themselves. For example, `SettingsBackend` lets the settings screen stay free of plugin and hub internals.
+The client's interface is split in two layers:
+
+| Module | Package | Contents | Compose |
+|---|---|---|---|
+| `presentation/<feature>` (`library`, `player`, `search`, `settings`) | `space.wavedot.presentation.<feature>` | `ViewModel`, `UiState`, `Intent`, and the ports a feature needs (for example `SettingsBackend`) | No |
+| `ui` | `space.wavedot.ui.*` | Every composable: the design system (`ui.designsystem`), the screens (`ui.library`, `ui.search`, `ui.player`, `ui.settings`), the root `WavedotApp` (`ui.app`) and the desktop window chrome (`ui.window`, `jvmMain`) | Yes |
+
+- `presentation/*` depends on `core/domain` and `lifecycle-viewmodel` only, so view models are tested as plain Kotlin and cannot reach the UI toolkit. `ui` depends on `presentation/*` and never on `app/shell` or `infra/*`.
+- `app/shell` wires `presentation/*` to the domain and infrastructure with Koin and has no Compose dependency. `app/desktop` and `app/android` are the only places that host the UI: they create the window or activity and call `WavedotApp(httpClient, imageCacheDirectory, …)`.
+- The design system (`ui.designsystem`) holds the Material 3 Expressive theme, icons and shared components. The accent color is user-selectable: presets generate a full light and dark scheme from a seed color (`color/SeedScheme.kt`, CIE LCh tonal palettes with Material 3 role tones), `System` uses Android 12+ dynamic color or the Windows accent color, and the chosen id is stored by `AppearanceSettings` in `app/shell` and exposed to the UI by `AppearanceViewModel`. Artwork is loaded with Coil 3: remote URLs go through the app's Ktor client, local covers are plain file paths, and `WavedotApp` installs the image loader with a disk cache in the platform cache directory.
+- Each `presentation/*` module has a `ViewModel` that exposes a `StateFlow<UiState>` and accepts `Intent`s (MVI); the matching composables in `ui` are stateless.
+- Presentation modules depend only on `core/domain` and on ports they declare themselves. For example, `SettingsBackend` lets the settings view model stay free of plugin and hub internals.
 - Settings is split into sections (Appearance, Plugins, Library, Sync, About). Wide windows show the section list and the open section side by side; narrow screens show the list first and open a section on its own page.
-- The library feature owns the playlist picker (`PlaylistPickerViewModel` and `PlaylistPickerSheet`). `app/shell` hosts a single picker above all screens and passes an `onAddToPlaylist` callback to the library, search and player screens, so every track list and the player open the same "Save to" sheet.
-- `app/shell` is the composition root shared by both apps. It contains the Koin modules (`wavedotModules(platformModule)`), `bootstrap()`, the adapters that implement feature ports, and `WavedotApp()`.
-- `app/android` and `app/desktop` only provide the platform module: the engine, database driver, storage locations and scanner.
+- The playlist picker is `PlaylistPickerViewModel` in `presentation/library` and `PlaylistPickerSheet` in `ui.library`. `WavedotApp` hosts a single picker above all screens and passes an `onAddToPlaylist` callback to the library, search and player screens, so every track list and the player open the same "Save to" sheet.
+- `app/shell` is the composition root shared by both apps. It contains the Koin modules (`wavedotModules(platformModule)`), `bootstrap()` and the adapters that implement presentation ports.
+- `app/android` and `app/desktop` provide the platform module (the engine, database driver, storage locations and scanner) and host `WavedotApp`.
 
 ### Data flow: playing a Yandex Music track
 

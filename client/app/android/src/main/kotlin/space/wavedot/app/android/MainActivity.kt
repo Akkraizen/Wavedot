@@ -12,12 +12,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
-import org.koin.android.ext.android.get
-import space.wavedot.app.shell.WavedotApp
-import space.wavedot.core.domain.library.LocalLibrary
-import space.wavedot.infra.playback.android.WavedotPlaybackService
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.get
+import space.wavedot.app.shell.PlatformEnvironment
+import space.wavedot.core.domain.library.LocalLibrary
+import space.wavedot.infra.playback.android.WavedotPlaybackService
+import space.wavedot.ui.app.WavedotApp
 
 class MainActivity : ComponentActivity() {
     private var controllerFuture: ListenableFuture<MediaController>? = null
@@ -33,7 +34,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestPermissionsIfNeeded()
-        setContent { WavedotApp() }
+        setContent { WavedotApp(httpClient = get(), imageCacheDirectory = get<PlatformEnvironment>().cacheDirectory) }
     }
 
     override fun onStart() {

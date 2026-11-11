@@ -1,5 +1,5 @@
 plugins {
-    id("wavedot.kmp.compose")
+    id("wavedot.kmp.library")
 }
 
 kotlin {
@@ -15,15 +15,12 @@ kotlin {
             api(projects.client.plugins.audius)
             api(projects.client.plugins.radioBrowser)
             api(projects.client.plugins.subsonic)
-            api(projects.client.feature.player)
-            api(projects.client.feature.library)
-            api(projects.client.feature.search)
-            api(projects.client.feature.settings)
-            implementation(projects.client.ui.designsystem)
-            implementation(libs.coil.network.ktor3)
+            api(projects.client.presentation.player)
+            api(projects.client.presentation.library)
+            api(projects.client.presentation.search)
+            api(projects.client.presentation.settings)
             api(libs.koin.core)
-            api(libs.koin.compose)
-            api(libs.koin.compose.viewmodel)
+            api(libs.koin.core.viewmodel)
         }
         jvmTest.dependencies {
             implementation(projects.client.core.testing)

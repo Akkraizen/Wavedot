@@ -7,7 +7,7 @@ android {
     defaultConfig {
         applicationId = "space.wavedot"
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = project.version.toString()
     }
     buildTypes {
         release {

@@ -49,7 +49,7 @@ internal class RadioBrowserApi(
 
     companion object {
         const val DEFAULT_BASE_URL: String = "https://all.api.radio-browser.info"
-        const val USER_AGENT: String = "Wavedot/0.1"
+        const val USER_AGENT: String = "Wavedot"
         const val SOURCE_NAME: String = "Radio Browser"
         private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
     }

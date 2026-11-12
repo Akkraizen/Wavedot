@@ -35,7 +35,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Dmg)
             packageName = "Wavedot"
-            packageVersion = "0.1.0"
+            packageVersion = project.version.toString().substringBefore('-')
             vendor = "Wavedot"
             description = "Modular music player"
             windows {

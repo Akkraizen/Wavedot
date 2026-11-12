@@ -15,9 +15,10 @@ data class AvailableUpdate(
     val downloadUrl: String,
     val sha256: String,
     val size: Long,
+    val fileName: String = "",
 )
 
-interface UpdateChecker {
+fun interface UpdateChecker {
     suspend fun latest(app: AppInfo): AvailableUpdate?
 }
 
@@ -25,5 +26,6 @@ class CheckForUpdates(
     private val checker: UpdateChecker,
     private val app: AppInfo,
 ) {
-    suspend operator fun invoke(): AvailableUpdate? = checker.latest(app)
+    suspend operator fun invoke(): AvailableUpdate? =
+        checker.latest(app)?.takeIf { VersionOrder.isNewer(it.version, than = app.version) }
 }

@@ -103,7 +103,7 @@ val coreModule: Module = module {
     single<UpdateChecker> {
         val settings = get<KeyValueStore>(SETTINGS_STORE)
         val environment = get<PlatformEnvironment>()
-        HttpUpdateChecker(get(), { settings.get("updates.url") ?: environment.defaultUpdatesUrl }, environment.updateTarget)
+        HttpUpdateChecker(get(), { settings.get("updates.url") ?: environment.defaultUpdatesUrl }, environment.updateTarget, get())
     }
     single<PlaybackPreferences> { FixedPlaybackPreferences(AudioQuality.LOSSLESS) }
     single { ResolveStream(get()) }

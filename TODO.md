@@ -66,7 +66,8 @@
 
 ## Updates
 
-- [ ] Sign artifacts (Ed25519) and verify signatures in the client in addition to SHA-256.
+- [x] Sign artifacts (ECDSA P-256, available on every supported Android version without extra dependencies) and verify signatures in the client in addition to SHA-256.
+- [ ] Signing key rotation policy and a second trusted key in release builds.
 - [ ] Install flow: Android package installer, Windows MSI/EXE handoff, Linux packages.
 - [ ] S3-compatible `ArtifactStorage` implementation.
 - [ ] Release notes rendering and a "what's new" screen.

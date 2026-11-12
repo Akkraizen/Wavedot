@@ -39,6 +39,7 @@ import kotlin.test.assertIs
 
 class ModuleGraphTest {
     private val testPlatform = module {
+        includes(jvmPlatformModule)
         single { HttpClient(MockEngine { respondOk() }) }
         single { createJvmDatabase(null) }
         single<KeyValueStore>(SETTINGS_STORE) { InMemoryKeyValueStore() }

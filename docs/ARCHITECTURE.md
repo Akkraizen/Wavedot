@@ -80,7 +80,7 @@ Every source implementation must pass `MediaSourceContractTest`.
 | `infra/network` | `createHttpClient` and `defaultHttpClient` (Ktor with OkHttp) |
 | `infra/stream-proxy` | `LoopbackStreamProxy` |
 | `infra/hub-client` | `HubClient`, which implements `SyncGateway` over `protocol-hub`, and `HubSettings` |
-| `infra/updater` | `HttpUpdateChecker`, which implements `UpdateChecker`, and `UpdateDownloader` (SHA-256 verified) |
+| `infra/updater` | `HttpUpdateChecker`, which implements `UpdateChecker` and accepts only releases whose manifest is signed by a key compiled into the build (`EcdsaUpdateSignatureVerifier`), and `UpdateDownloader` (https only, exact size, SHA-256) |
 | `sources/local` | `LocalMediaSource`, with `FileSystemTrackScanner` (desktop, jaudiotagger) and `MediaStoreTrackScanner` (Android) |
 | `plugins/yandex-music` | The built-in Yandex Music plugin. See [PLUGINS.md](PLUGINS.md) |
 | `plugins/subsonic` | Subsonic and OpenSubsonic servers (Navidrome, Gonic, Airsonic, Ampache) |
@@ -104,6 +104,7 @@ The client's interface is split in two layers:
 - Presentation modules depend only on `core/domain` and on ports they declare themselves. For example, `SettingsBackend` lets the settings view model stay free of plugin and hub internals.
 - Settings is split into sections (Appearance, Plugins, Library, Sync, About). Wide windows show the section list and the open section side by side; narrow screens show the list first and open a section on its own page.
 - The playlist picker is `PlaylistPickerViewModel` in `presentation/library` and `PlaylistPickerSheet` in `ui.library`. `WavedotApp` hosts a single picker above all screens and passes an `onAddToPlaylist` callback to the library, search and player screens, so every track list and the player open the same "Save to" sheet.
+- `app/shell` generates `BuildInfo` (version, update server URL and trusted update keys) from the Gradle project version and the `wavedot.updatesUrl` and `wavedot.updateSigningKey` properties, so the version is declared once in the root build script.
 - `app/shell` is the composition root shared by both apps. It contains the Koin modules (`wavedotModules(platformModule)`), `bootstrap()` and the adapters that implement presentation ports.
 - `app/android` and `app/desktop` provide the platform module (the engine, database driver, storage locations and scanner) and host `WavedotApp`.
 

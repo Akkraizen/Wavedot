@@ -119,13 +119,22 @@ class SettingsViewModelTest {
 
     @Test
     fun groupsPluginsIntoSourcesAndLyrics() = runTest(dispatcher) {
-        fun plugin(id: String, group: PluginGroup) = PluginInfo(id, id, "", "Active", true, emptyList(), group)
+        fun plugin(id: String, group: PluginGroup) = PluginInfo(id, id, "", PluginState.ACTIVE, emptyList(), group)
         val plugins = listOf(plugin("yandex-music", PluginGroup.SOURCES), plugin("lrclib", PluginGroup.LYRICS), plugin("audius", PluginGroup.SOURCES))
         val viewModel = SettingsViewModel(FakeBackend(plugins = MutableStateFlow(plugins)))
         backgroundScope.launch { viewModel.state.collect {} }
         val state = viewModel.state.first { it.plugins.isNotEmpty() }
         assertEquals(listOf("yandex-music", "audius"), state.sourcePlugins.map { it.id })
         assertEquals(listOf("lrclib"), state.lyricsPlugins.map { it.id })
+    }
+
+    @Test
+    fun describesPluginStates() {
+        fun plugin(state: PluginState, failure: String? = null) = PluginInfo("p", "P", "", state, emptyList(), failure = failure)
+        assertEquals("Active" to true, plugin(PluginState.ACTIVE).let { it.status to it.active })
+        assertEquals("Needs setup" to false, plugin(PluginState.NEEDS_SETUP).let { it.status to it.active })
+        assertEquals("Disabled", plugin(PluginState.DISABLED).status)
+        assertEquals("Error: boom", plugin(PluginState.FAILED, "boom").status)
     }
 
     @Test

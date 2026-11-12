@@ -17,6 +17,7 @@ import space.wavedot.plugin.api.PluginFeature
 import space.wavedot.presentation.settings.PluginGroup
 import space.wavedot.presentation.settings.PluginInfo
 import space.wavedot.presentation.settings.PluginSecretField
+import space.wavedot.presentation.settings.PluginState
 import space.wavedot.presentation.settings.SettingsBackend
 
 private val PluginStatus.Loaded.contributesNothing: Boolean
@@ -42,18 +43,12 @@ class DefaultSettingsBackend(
                 id = entry.manifest.id,
                 name = entry.manifest.name,
                 description = entry.manifest.description,
-                status = when (status) {
-                    is PluginStatus.Loaded -> {
-                        if (status.contributesNothing) {
-                            "Needs setup"
-                        } else {
-                            "Active"
-                        }
-                    }
-                    is PluginStatus.Failed -> "Error: ${status.reason}"
-                    PluginStatus.Unloaded -> "Disabled"
+                state = when (status) {
+                    is PluginStatus.Loaded -> if (status.contributesNothing) PluginState.NEEDS_SETUP else PluginState.ACTIVE
+                    is PluginStatus.Failed -> PluginState.FAILED
+                    PluginStatus.Unloaded -> PluginState.DISABLED
                 },
-                active = status is PluginStatus.Loaded && !status.contributesNothing,
+                failure = (status as? PluginStatus.Failed)?.reason,
                 group = if (PluginFeature.SOURCES in entry.manifest.features) PluginGroup.SOURCES else PluginGroup.LYRICS,
                 fields = entry.manifest.settings.map { spec ->
                     val stored = store(entry.manifest.id, spec.secret).get(spec.key)

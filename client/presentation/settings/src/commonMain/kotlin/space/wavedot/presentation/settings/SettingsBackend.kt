@@ -15,15 +15,27 @@ data class PluginSecretField(
 
 enum class PluginGroup { SOURCES, LYRICS }
 
+enum class PluginState { ACTIVE, NEEDS_SETUP, DISABLED, FAILED }
+
 data class PluginInfo(
     val id: String,
     val name: String,
     val description: String,
-    val status: String,
-    val active: Boolean,
+    val state: PluginState,
     val fields: List<PluginSecretField>,
     val group: PluginGroup = PluginGroup.SOURCES,
-)
+    val failure: String? = null,
+) {
+    val active: Boolean get() = state == PluginState.ACTIVE
+
+    val status: String
+        get() = when (state) {
+            PluginState.ACTIVE -> "Active"
+            PluginState.NEEDS_SETUP -> "Needs setup"
+            PluginState.DISABLED -> "Disabled"
+            PluginState.FAILED -> "Error: ${failure.orEmpty()}"
+        }
+}
 
 interface SettingsBackend {
     val plugins: Flow<List<PluginInfo>>

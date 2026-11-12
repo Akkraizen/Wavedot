@@ -48,6 +48,7 @@ class PluginManager(
 
     init {
         require(this.plugins.size == plugins.size) { "Duplicate plugin ids" }
+        this.plugins.keys.forEach { id -> require(PLUGIN_ID.matches(id)) { "Invalid plugin id: $id" } }
     }
 
     suspend fun loadAll() = plugins.keys.forEach { load(it) }
@@ -99,5 +100,6 @@ class PluginManager(
 
     private companion object {
         const val TAG = "PluginManager"
+        val PLUGIN_ID = Regex("""^[a-z0-9][a-z0-9-]{0,63}$""")
     }
 }

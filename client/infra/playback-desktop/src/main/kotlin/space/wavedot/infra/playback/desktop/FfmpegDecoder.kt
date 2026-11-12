@@ -54,6 +54,11 @@ import kotlin.time.Duration.Companion.microseconds
 
 class FfmpegException(message: String) : RuntimeException(message)
 
+enum class FfmpegInput(val protocols: String) {
+    LOCAL_FILE("file"),
+    NETWORK("http,https,tls,tcp,crypto"),
+}
+
 class FfmpegDecoder private constructor(
     private val format: AVFormatContext,
     private val codec: AVCodecContext,
@@ -166,11 +171,18 @@ class FfmpegDecoder private constructor(
             av_log_set_level(AV_LOG_ERROR)
         }
 
-        fun open(uri: String, headers: Map<String, String> = emptyMap(), maxChannels: Int = 2): FfmpegDecoder {
+        fun open(
+            uri: String,
+            headers: Map<String, String> = emptyMap(),
+            maxChannels: Int = 2,
+            input: FfmpegInput = FfmpegInput.LOCAL_FILE,
+        ): FfmpegDecoder {
             val format = AVFormatContext(null)
             val options = AVDictionary(null)
-            if (headers.isNotEmpty()) {
-                av_dict_set(options, "headers", headers.entries.joinToString("") { "${it.key}: ${it.value}\r\n" }, 0)
+            av_dict_set(options, "protocol_whitelist", input.protocols, 0)
+            val safeHeaders = headers.filterNot { (name, value) -> (name + value).any { it == '\r' || it == '\n' } }
+            if (safeHeaders.isNotEmpty()) {
+                av_dict_set(options, "headers", safeHeaders.entries.joinToString("") { "${it.key}: ${it.value}\r\n" }, 0)
             }
             val opened = avformat_open_input(format, uri, null, options)
             av_dict_free(options)

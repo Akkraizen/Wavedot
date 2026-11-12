@@ -8,6 +8,7 @@ import io.ktor.client.request.parameter
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
+import io.ktor.http.encodeURLPathPart
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
 import space.wavedot.core.common.WavedotError
@@ -31,7 +32,7 @@ internal class RadioBrowserApi(
         return get("/json/stations/byuuid") { parameter("uuids", uuids.joinToString(",")) }
     }
 
-    suspend fun streamUrl(uuid: String): RbStreamUrl = get("/json/url/$uuid")
+    suspend fun streamUrl(uuid: String): RbStreamUrl = get("/json/url/${uuid.encodeURLPathPart()}")
 
     private suspend inline fun <reified T> get(path: String, crossinline block: HttpRequestBuilder.() -> Unit = {}): T =
         http.get(baseUrl + path) {

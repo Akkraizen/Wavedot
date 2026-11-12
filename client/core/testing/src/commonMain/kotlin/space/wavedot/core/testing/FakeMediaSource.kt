@@ -35,6 +35,7 @@ class FakeMediaSource(
 ) : MediaSource {
     val tracks: MutableList<Track> = tracks.toMutableList()
     val liked: MutableList<Track> = liked.toMutableList()
+    var streamOverride: StreamSource? = null
 
     override val descriptor = SourceDescriptor(id, "Fake ${id.value}", kind)
 
@@ -93,7 +94,7 @@ class FakeMediaSource(
         override val supportedQualities: Set<AudioQuality> = setOf(AudioQuality.LOW, AudioQuality.HIGH)
 
         override suspend fun resolve(trackId: MediaId, quality: AudioQuality): StreamSource =
-            StreamSource.Remote("https://fake.test/${trackId.key}?q=${quality.name}")
+            streamOverride ?: StreamSource.Remote("https://fake.test/${trackId.key}?q=${quality.name}")
     }
 
     override val library: RemoteLibrary? = if (!withLibrary) null else object : RemoteLibrary {

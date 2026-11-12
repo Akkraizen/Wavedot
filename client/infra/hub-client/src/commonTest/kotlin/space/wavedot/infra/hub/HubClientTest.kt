@@ -9,13 +9,17 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import space.wavedot.core.common.InMemoryKeyValueStore
 import space.wavedot.core.common.WavedotError
 import space.wavedot.core.common.WavedotException
 import space.wavedot.core.domain.library.Favorite
 import space.wavedot.core.domain.library.FavoriteChange
 import space.wavedot.core.domain.sync.SyncRecord
+import space.wavedot.core.model.Artwork
 import space.wavedot.core.testing.TestTracks
 import space.wavedot.protocol.core.PlatformDto
 import space.wavedot.protocol.core.ProtocolJson
@@ -153,5 +157,29 @@ class HubClientTest {
         client.deleteAccount()
         assertEquals(listOf("/v1/account"), deleted)
         assertFalse(client.isConfigured())
+    }
+
+    @Test
+    fun keepsOnlyPortableArtworkInBothDirections() {
+        fun favorite(artwork: String?) = SyncRecord.Favorite(
+            FavoriteChange(track.id, Favorite(track.copy(artwork = artwork?.let(::Artwork)), 3), 3),
+        )
+        fun sent(artwork: String?) = SyncRecordMapper.toDto(favorite(artwork)).payload!!.jsonObject["artworkUrl"]?.jsonPrimitive?.content
+        fun received(artwork: String): String? {
+            val dto = SyncRecordMapper.toDto(favorite("https://cdn.test/a.jpg")).let { original ->
+                original.copy(payload = JsonObject(original.payload!!.jsonObject + ("artworkUrl" to JsonPrimitive(artwork))))
+            }
+            return (SyncRecordMapper.fromDto(dto) as SyncRecord.Favorite).change.favorite?.track?.artwork?.url
+        }
+
+        assertEquals("https://cdn.test/a.jpg", sent("https://cdn.test/a.jpg"))
+        assertEquals("wavedot-artwork:subsonic:al-1", sent("wavedot-artwork:subsonic:al-1"))
+        assertNull(sent("C:\\Users\\igor\\AppData\\Roaming\\Wavedot\\covers\\a.img"))
+        assertNull(sent("content://media/external/audio/albumart/7"))
+
+        assertEquals("https://cdn.test/b.jpg", received("https://cdn.test/b.jpg"))
+        assertNull(received("/etc/passwd"))
+        assertNull(received("file:///etc/passwd"))
+        assertNull(received("content://media/external/audio/albumart/7"))
     }
 }

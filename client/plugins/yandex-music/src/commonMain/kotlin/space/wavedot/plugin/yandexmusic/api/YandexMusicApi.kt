@@ -13,6 +13,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
+import io.ktor.http.encodeURLPathPart
 import kotlinx.serialization.json.Json
 import space.wavedot.core.common.TimeProvider
 import space.wavedot.core.common.WavedotError
@@ -52,17 +53,17 @@ internal class YandexMusicApi(
     suspend fun searchArtists(text: String, page: Int): YmSearchSection<YmArtist> =
         search(text, "artist", page).artists ?: YmSearchSection()
 
-    suspend fun albumWithTracks(albumId: String): YmAlbum = get("/albums/$albumId/with-tracks")
+    suspend fun albumWithTracks(albumId: String): YmAlbum = get("/albums/${albumId.encodeURLPathPart()}/with-tracks")
 
     suspend fun artistTracks(artistId: String, page: Int, pageSize: Int): YmArtistTracks =
-        get("/artists/$artistId/tracks") {
+        get("/artists/${artistId.encodeURLPathPart()}/tracks") {
             parameter("page", page)
             parameter("page-size", pageSize)
         }
 
     suspend fun lyrics(trackId: String, format: String): YmTrackLyrics? {
         val timestamp = time.nowMillis() / 1000
-        val response = http.get("$baseUrl/tracks/$trackId/lyrics") {
+        val response = http.get("$baseUrl/tracks/${trackId.encodeURLPathPart()}/lyrics") {
             authorize()
             parameter("format", format)
             parameter("timeStamp", timestamp)

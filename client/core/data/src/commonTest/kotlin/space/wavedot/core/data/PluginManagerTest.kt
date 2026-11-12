@@ -22,6 +22,7 @@ import space.wavedot.plugin.api.PluginManifest
 import space.wavedot.plugin.api.WavedotPlugin
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -83,5 +84,14 @@ class PluginManagerTest {
         val manager = PluginManager(listOf(SamplePlugin("future", apiVersion = 99)), registry, lyricsRegistry, contextFactory)
         assertIs<PluginStatus.Failed>(manager.load("future"))
         assertTrue(registry.sources.value.isEmpty())
+    }
+
+    @Test
+    fun refusesPluginIdsThatCouldCollideInStorage() {
+        listOf("a.b", "A", "", "with space", "-lead").forEach { id ->
+            assertFailsWith<IllegalArgumentException>(id) {
+                PluginManager(listOf(SamplePlugin(id)), registry, lyricsRegistry, contextFactory)
+            }
+        }
     }
 }

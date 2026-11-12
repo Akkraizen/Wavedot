@@ -2,7 +2,7 @@ plugins {
     id("wavedot.kmp.library")
 }
 
-val generateBuildInfo by tasks.registering {
+val generateBuildInfo = tasks.register("generateBuildInfo") {
     val version = project.version.toString()
     val updateSigningKey = providers.gradleProperty("wavedot.updateSigningKey").orElse("")
     val updatesUrl = providers.gradleProperty("wavedot.updatesUrl").orElse("")

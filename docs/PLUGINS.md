@@ -23,7 +23,7 @@ class MyPlugin : WavedotPlugin {
 The lifecycle works like this:
 
 1. `PluginManager.loadAll()` runs at startup.
-2. For each plugin, the manager checks `apiVersion`, builds a `PluginContext` and calls `onLoad`. The returned sources are registered in the `MediaSourceRegistry`.
+2. For each plugin, the manager checks that `apiVersion` lies within `MIN_PLUGIN_API_VERSION..PLUGIN_API_VERSION`, builds a `PluginContext` and calls `onLoad`. The returned sources are registered in the `MediaSourceRegistry`.
 3. If loading fails, the plugin is marked `Failed` with a reason, and the rest of the app keeps working.
 4. Settings lists plugins under Settings → Plugins, grouped by `PluginManifest.features`: a plugin with `SOURCES` appears under Sources, a lyrics-only plugin (`LYRICS`) under Lyrics. The default is `SOURCES`.
 5. When the user saves a setting declared in the manifest, the host stores it (secrets separately) and reloads the plugin. Settings show their current value in Settings; secrets only show that a value is saved. `PluginSettingSpec.hint` is shown as a placeholder.
@@ -31,8 +31,20 @@ The lifecycle works like this:
 `PluginContext` provides:
 
 - `httpClient`: the host's configured Ktor client.
-- `settings` and `secrets`: key-value stores namespaced to the plugin.
+- `settings` and `secrets`: key-value stores namespaced to the plugin. Secrets are encrypted at rest where the platform offers a key store.
 - `logger`.
+
+Plugin ids are lowercase letters, digits and hyphens; anything else is refused, because the id is the storage namespace.
+
+## Trust model
+
+Plugins are compiled into the app and run in its process with its permissions. The namespaced stores and the shared HTTP client keep well-behaved plugins apart; they are not a sandbox. Before plugins can be loaded from outside the build, the host needs real isolation (a separate process or a restricted API surface) and a per-plugin network policy; a signature on the JAR only says who built it.
+
+What the host does check, because it does not trust the services behind a plugin:
+
+- `StreamSource.Remote` must be `http` or `https` and its headers must not contain line breaks. The desktop decoder additionally opens network streams with an FFmpeg protocol whitelist.
+- Artwork that needs credentials must be an `ArtworkReference`, never a signed URL (see below).
+- Ids that come from outside (the hub, a search result) are percent-encoded before they enter a request path; do the same in new plugins.
 
 ## Writing a source
 
@@ -41,7 +53,8 @@ A source implements whichever capabilities its service supports. Its `SourceDesc
 - use its own `SourceId` in every `MediaId` it emits;
 - turn backend paging into `Page`/`Cursor`;
 - throw `WavedotException(WavedotError.Unauthorized(...))` when credentials are missing or rejected;
-- return the simplest `StreamSource` that works: `Remote` for plain URLs, `Custom` when bytes must be transformed (decryption, chunk assembly).
+- return the simplest `StreamSource` that works: `Remote` for plain URLs, `Custom` when bytes must be transformed (decryption, chunk assembly);
+- return `Artwork(ArtworkReference.of(sourceId, key))` and implement `MediaSource.artwork` when a cover URL would carry a token or signature, so nothing secret is stored in the library or synced.
 
 `openByteStream(url, offset, headers)` in `space.wavedot.plugin.api.http` returns a `ByteStream` that issues an HTTP `Range` request and reports the total length. It is the building block for `Custom` streams.
 
@@ -89,7 +102,7 @@ Requests send a `User-Agent` of `Wavedot/0.1`, as the directory asks. Streams ar
 
 Connects to one server that speaks the Subsonic API 1.16.1, including OpenSubsonic servers such as Navidrome. Settings: server URL, username and password (a secret). The plugin stays inactive until all three are set; on load it calls `ping` and fails with `Unauthorized` if the credentials are wrong, while an unreachable server only logs a warning.
 
-Every request uses token authentication: `u`, `t = md5(password + salt)`, `s` (a random salt per session), `v = 1.16.1`, `c = Wavedot` and `f = json`. The password itself is never sent.
+Every request uses token authentication: `u`, `t = md5(password + salt)`, `s` (a random 16-byte salt per session from a secure generator), `v = 1.16.1`, `c = Wavedot` and `f = json`. The password itself is never sent.
 
 | Capability | Endpoint |
 |---|---|
@@ -99,7 +112,7 @@ Every request uses token authentication: `u`, `t = md5(password + salt)`, `s` (a
 | Likes | `getStarred2`, `star`, `unstar` |
 | Artwork | `getCoverArt` at 480 px |
 
-Album keys are prefixed `album/` and artist keys `artist/`. Artist tracks are loaded ten albums per page. Stream and artwork URLs contain the salted token, so they stop working when the password changes.
+Album keys are prefixed `album/` and artist keys `artist/`. Artist tracks are loaded ten albums per page. Stream URLs contain the salted token; they exist only while a track is being loaded and their query is stripped from error messages. Artwork is handed out as `wavedot-artwork:subsonic:<coverId>` and resolved to a `getCoverArt` URL when an image is loaded. Over plain http the token can be captured and replayed, so use https for any server outside your own network.
 
 ## Built-in: Yandex Music (`plugins/yandex-music`)
 

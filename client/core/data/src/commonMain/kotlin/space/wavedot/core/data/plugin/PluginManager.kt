@@ -13,6 +13,7 @@ import space.wavedot.core.common.warn
 import space.wavedot.core.contract.LyricsProviderRegistry
 import space.wavedot.core.contract.MediaSourceRegistry
 import space.wavedot.core.model.SourceId
+import space.wavedot.plugin.api.MIN_PLUGIN_API_VERSION
 import space.wavedot.plugin.api.PLUGIN_API_VERSION
 import space.wavedot.plugin.api.PluginContext
 import space.wavedot.plugin.api.PluginManifest
@@ -63,8 +64,8 @@ class PluginManager(
         val current = statusOf(id)
         if (current is PluginStatus.Loaded) return@withLock current
         val status = try {
-            check(plugin.manifest.apiVersion == PLUGIN_API_VERSION) {
-                "Plugin API ${plugin.manifest.apiVersion} is not supported (host: $PLUGIN_API_VERSION)"
+            check(plugin.manifest.apiVersion in MIN_PLUGIN_API_VERSION..PLUGIN_API_VERSION) {
+                "Plugin API ${plugin.manifest.apiVersion} is not supported (host: $MIN_PLUGIN_API_VERSION..$PLUGIN_API_VERSION)"
             }
             val contribution = plugin.onLoad(contextFactory.create(plugin.manifest))
             contribution.sources.forEach(registry::register)

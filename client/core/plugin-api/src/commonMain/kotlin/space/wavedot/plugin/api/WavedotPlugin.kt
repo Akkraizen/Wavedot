@@ -4,6 +4,7 @@ import space.wavedot.core.contract.LyricsProvider
 import space.wavedot.core.contract.MediaSource
 
 const val PLUGIN_API_VERSION: Int = 1
+const val MIN_PLUGIN_API_VERSION: Int = 1
 
 data class PluginManifest(
     val id: String,

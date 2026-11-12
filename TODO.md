@@ -14,7 +14,8 @@
 - [ ] **Internet Archive** and **Jamendo**: free catalogs.
 - [ ] Yandex Music: albums, artists, playlists, "My Wave" radio, lyrics.
 - [ ] Yandex Music: OAuth device flow in Settings instead of pasting a token.
-- [ ] Load plugins at runtime from JARs (desktop: `ServiceLoader` and an isolated class loader), with signature checks.
+- [ ] Load plugins at runtime from JARs (desktop: `ServiceLoader` and an isolated class loader), with signature checks. Needs process-level isolation or a restricted API and a per-plugin network policy first (see the trust model in docs/PLUGINS.md).
+- [ ] Subsonic: OpenSubsonic API key authentication instead of the salted password token.
 
 ## Library and core features
 
@@ -57,11 +58,15 @@
 
 ## Sync and accounts (hub)
 
-- [ ] Pair additional devices to an existing account (pairing code or QR).
+- [ ] Pair additional devices to an existing account (pairing code or QR). Until then an account has exactly one device.
+- [x] List and revoke devices, delete the account.
 - [ ] Use the WebSocket revision events on the client to trigger sync automatically.
 - [ ] Settings sync (`settings` collection) and playlist sync (`playlists` collection).
 - [ ] Optional end-to-end encryption of payloads.
-- [ ] Rate limiting and an audit log.
+- [x] Rate limiting, request size limits and per-account quotas.
+- [ ] An audit log.
+- [ ] Purge tombstones that every device has already pulled.
+- [ ] Device token rotation and expiry of devices that have not been seen for a long time.
 - [ ] Testcontainers-based PostgreSQL tests next to the H2 ones.
 
 ## Updates

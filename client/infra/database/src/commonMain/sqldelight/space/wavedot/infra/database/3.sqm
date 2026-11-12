@@ -1,0 +1,28 @@
+INSERT OR REPLACE INTO favorite_change(source, media_key, deleted, updated_at)
+SELECT source, media_key, 0, CAST(strftime('%s', 'now') AS INTEGER) * 1000
+FROM favorite
+WHERE artwork_url LIKE '%/rest/getCoverArt.view?%';
+
+UPDATE favorite
+SET artwork_url = CASE
+    WHEN instr(artwork_url, '&id=') > 0 AND instr(artwork_url, '&size=') > instr(artwork_url, '&id=')
+    THEN 'wavedot-artwork:subsonic:' || substr(
+        artwork_url,
+        instr(artwork_url, '&id=') + 4,
+        instr(artwork_url, '&size=') - instr(artwork_url, '&id=') - 4
+    )
+    ELSE NULL
+END
+WHERE artwork_url LIKE '%/rest/getCoverArt.view?%';
+
+UPDATE playlist_track
+SET artwork_url = CASE
+    WHEN instr(artwork_url, '&id=') > 0 AND instr(artwork_url, '&size=') > instr(artwork_url, '&id=')
+    THEN 'wavedot-artwork:subsonic:' || substr(
+        artwork_url,
+        instr(artwork_url, '&id=') + 4,
+        instr(artwork_url, '&size=') - instr(artwork_url, '&id=') - 4
+    )
+    ELSE NULL
+END
+WHERE artwork_url LIKE '%/rest/getCoverArt.view?%';

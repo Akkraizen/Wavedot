@@ -67,6 +67,7 @@ class ModuleGraphTest {
     fun graphResolvesAndBootstraps() = runBlocking {
         val koin = koinApplication { modules(wavedotModules(testPlatform)) }.koin
         koin.get<SettingsBackend>()
+        koin.get<space.wavedot.core.domain.artwork.ResolveArtwork>()
         koin.get<space.wavedot.presentation.player.PlayerViewModel>()
         koin.get<space.wavedot.presentation.player.LyricsViewModel>()
         koin.get<space.wavedot.presentation.library.LibraryViewModel>()

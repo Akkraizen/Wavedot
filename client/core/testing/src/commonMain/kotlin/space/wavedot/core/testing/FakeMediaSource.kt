@@ -1,5 +1,6 @@
 package space.wavedot.core.testing
 
+import space.wavedot.core.contract.ArtworkResolver
 import space.wavedot.core.contract.Catalog
 import space.wavedot.core.contract.EntityProvider
 import space.wavedot.core.contract.LyricsProvider
@@ -30,6 +31,7 @@ class FakeMediaSource(
     kind: SourceKind = SourceKind.STREAMING,
     private val searchable: Boolean = true,
     override val lyrics: LyricsProvider? = null,
+    override val artwork: ArtworkResolver? = null,
 ) : MediaSource {
     val tracks: MutableList<Track> = tracks.toMutableList()
     val liked: MutableList<Track> = liked.toMutableList()

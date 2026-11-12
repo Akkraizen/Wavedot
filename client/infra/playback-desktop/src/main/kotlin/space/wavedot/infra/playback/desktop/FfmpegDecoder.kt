@@ -1,6 +1,7 @@
 package space.wavedot.infra.playback.desktop
 
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext
+import space.wavedot.core.common.withoutUrlSecrets
 import org.bytedeco.ffmpeg.avcodec.AVPacket
 import org.bytedeco.ffmpeg.avformat.AVFormatContext
 import org.bytedeco.ffmpeg.avutil.AVChannelLayout
@@ -173,11 +174,11 @@ class FfmpegDecoder private constructor(
             }
             val opened = avformat_open_input(format, uri, null, options)
             av_dict_free(options)
-            if (opened < 0) throw FfmpegException("Cannot open $uri: ${errorText(opened)}")
+            if (opened < 0) throw FfmpegException("Cannot open ${uri.withoutUrlSecrets()}: ${errorText(opened)}")
             try {
                 check(avformat_find_stream_info(format, null as PointerPointer<*>?) >= 0) { "No stream info" }
                 val streamIndex = av_find_best_stream(format, AVMEDIA_TYPE_AUDIO, -1, -1, null as PointerPointer<*>?, 0)
-                if (streamIndex < 0) throw FfmpegException("No audio stream in $uri")
+                if (streamIndex < 0) throw FfmpegException("No audio stream in ${uri.withoutUrlSecrets()}")
                 val parameters = format.streams(streamIndex).codecpar()
                 val decoder = avcodec_find_decoder(parameters.codec_id())
                     ?: throw FfmpegException("No decoder for codec ${parameters.codec_id()}")

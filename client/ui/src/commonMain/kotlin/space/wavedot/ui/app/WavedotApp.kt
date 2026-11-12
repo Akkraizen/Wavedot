@@ -76,10 +76,11 @@ enum class NavigationLayout { BOTTOM_BAR, SIDE_RAIL }
 fun WavedotApp(
     httpClient: HttpClient,
     imageCacheDirectory: String?,
+    artworkResolver: ArtworkUrlResolver,
     navigationLayout: NavigationLayout = NavigationLayout.BOTTOM_BAR,
     titleBar: @Composable () -> Unit = {},
 ) {
-    InstallImageLoader(httpClient, imageCacheDirectory)
+    InstallImageLoader(httpClient, imageCacheDirectory, artworkResolver)
     val appearance = koinViewModel<AppearanceViewModel>()
     val accentId by appearance.accentId.collectAsState()
     WavedotTheme(accent = Accents.byId(accentId)) {

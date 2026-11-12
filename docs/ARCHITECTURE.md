@@ -45,6 +45,7 @@ interface MediaSource {
     val search: Search?          // PagedQuery<SearchQuery, T>
     val streaming: Streaming?    // resolve(MediaId, AudioQuality) -> StreamSource
     val library: RemoteLibrary?  // liked tracks, like/unlike
+    val artwork: ArtworkResolver? // reference key -> image URL
 }
 ```
 
@@ -54,6 +55,8 @@ interface MediaSource {
   - `LocalFile`: a path or `content://` URI.
   - `Remote`: a URL plus headers.
   - `Custom`: a seekable `ByteStreamOpener`, used for decrypted and generated streams.
+
+Artwork that needs credentials or signing never stores a ready-made URL. The source returns `ArtworkReference.of(sourceId, key)` (`wavedot-artwork:<source>:<key>`) and implements the optional `artwork: ArtworkResolver` capability; `ResolveArtwork` turns the reference into a URL at load time and the image loader caches it under the reference. References are safe to persist and to sync, the resolved URLs are not.
 
 Every source implementation must pass `MediaSourceContractTest`.
 

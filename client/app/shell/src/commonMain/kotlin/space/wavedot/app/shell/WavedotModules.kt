@@ -21,6 +21,7 @@ import space.wavedot.core.data.plugin.DefaultPluginContextFactory
 import space.wavedot.core.data.plugin.PluginManager
 import space.wavedot.core.data.source.DefaultLyricsProviderRegistry
 import space.wavedot.core.data.source.DefaultMediaSourceRegistry
+import space.wavedot.core.domain.artwork.ResolveArtwork
 import space.wavedot.core.domain.library.FavoritesRepository
 import space.wavedot.core.domain.library.LocalLibrary
 import space.wavedot.core.domain.library.PlaylistEditor
@@ -106,6 +107,7 @@ val coreModule: Module = module {
     }
     single<PlaybackPreferences> { FixedPlaybackPreferences(AudioQuality.LOSSLESS) }
     single { ResolveStream(get()) }
+    single { ResolveArtwork(get()) }
     single { PlayerController(get(), get(), get(), get(APP_SCOPE), get()) }
     factory { SearchCatalog(get()) }
     factory { LoadCollection(get()) }

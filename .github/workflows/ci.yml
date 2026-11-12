@@ -22,7 +22,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 25
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
         with:
           validate-wrappers: true
       - run: ./gradlew -Pwavedot.serverOnly=true checkArchitecture test
@@ -37,7 +37,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 25
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
         with:
           validate-wrappers: true
       - run: ./gradlew checkArchitecture jvmTest test
@@ -52,5 +52,5 @@ jobs:
         with:
           distribution: temurin
           java-version: 25
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - run: ./gradlew :client:infra:storage:jvmTest :client:app:shell:jvmTest

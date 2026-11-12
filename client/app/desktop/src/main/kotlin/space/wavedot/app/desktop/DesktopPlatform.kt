@@ -61,7 +61,7 @@ val desktopModule = module {
     single { defaultHttpClient(HttpClientSettings(userAgent = "Wavedot/$APP_VERSION")) }
     single { createJvmDatabase(File(DesktopPaths.dataDir, "wavedot.db")) }
     single<KeyValueStore>(SETTINGS_STORE) { FileKeyValueStore(File(DesktopPaths.dataDir, "settings.properties")) }
-    single<KeyValueStore>(SECRETS_STORE) { FileKeyValueStore(File(DesktopPaths.dataDir, "secrets.properties")) }
+    single<KeyValueStore>(SECRETS_STORE) { FileKeyValueStore(File(DesktopPaths.dataDir, "secrets.properties"), ownerOnly = true) }
     single<StreamProxy> { LoopbackStreamProxy() }
     single<AudioEngine> { FfmpegAudioEngine(get()) }
     single<LocalTrackScanner> {

@@ -98,7 +98,7 @@ val coreModule: Module = module {
     single<PlaylistRepository> { SqlPlaylistRepository(get(), Dispatchers.IO) }
     factory { PlaylistEditor(get(), get()) }
     single<SyncStateStore> { SqlSyncStateStore(get(), Dispatchers.IO) }
-    single { HubSettings(get(SETTINGS_STORE)) }
+    single { HubSettings(get(SETTINGS_STORE), get(SECRETS_STORE)) }
     single { HubClient(get(), get()) } bind SyncGateway::class
     single<UpdateChecker> {
         val settings = get<KeyValueStore>(SETTINGS_STORE)

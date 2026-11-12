@@ -32,8 +32,9 @@ data class SettingsUiState(
 
 sealed interface SettingsIntent {
     data class SavePluginValue(val pluginId: String, val key: String, val value: String) : SettingsIntent
-    data class ConnectHub(val url: String) : SettingsIntent
+    data class ConnectHub(val url: String, val registrationToken: String = "") : SettingsIntent
     data object DisconnectHub : SettingsIntent
+    data object DeleteHubAccount : SettingsIntent
     data object SyncNow : SettingsIntent
     data object CheckUpdates : SettingsIntent
     data class AddFolder(val path: String) : SettingsIntent
@@ -74,8 +75,11 @@ class SettingsViewModel(private val backend: SettingsBackend) : ViewModel() {
             is SettingsIntent.SavePluginValue -> run("Saved") {
                 backend.updatePluginValue(intent.pluginId, intent.key, intent.value.trim())
             }
-            is SettingsIntent.ConnectHub -> run("Connected to hub") { backend.connectHub(intent.url.trim()) }
+            is SettingsIntent.ConnectHub -> run("Connected to hub") {
+                backend.connectHub(intent.url.trim(), intent.registrationToken.trim())
+            }
             SettingsIntent.DisconnectHub -> run("Disconnected") { backend.disconnectHub() }
+            SettingsIntent.DeleteHubAccount -> run("The hub account and its data were deleted") { backend.deleteHubAccount() }
             SettingsIntent.SyncNow -> run(null) {
                 val report = backend.syncNow()
                 message.value = buildString {

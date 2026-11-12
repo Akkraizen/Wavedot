@@ -114,11 +114,13 @@ class DefaultSettingsBackend(
         return NamespacedPluginStore(delegate, pluginId)
     }
 
-    override suspend fun connectHub(url: String) {
-        hubClient.createAccount(url, environment.deviceName, environment.platform)
+    override suspend fun connectHub(url: String, registrationToken: String) {
+        hubClient.createAccount(url, environment.deviceName, environment.platform, registrationToken)
     }
 
     override suspend fun disconnectHub() = hubClient.disconnect()
+
+    override suspend fun deleteHubAccount() = hubClient.deleteAccount()
 
     override suspend fun syncNow(): SyncReport = syncLibrary()()
 

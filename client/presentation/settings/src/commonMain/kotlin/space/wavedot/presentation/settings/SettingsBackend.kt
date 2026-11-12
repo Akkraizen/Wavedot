@@ -34,9 +34,11 @@ interface SettingsBackend {
 
     suspend fun updatePluginValue(pluginId: String, key: String, value: String)
 
-    suspend fun connectHub(url: String)
+    suspend fun connectHub(url: String, registrationToken: String)
 
     suspend fun disconnectHub()
+
+    suspend fun deleteHubAccount()
 
     suspend fun syncNow(): SyncReport
 

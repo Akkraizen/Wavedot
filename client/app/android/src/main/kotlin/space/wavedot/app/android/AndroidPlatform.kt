@@ -31,7 +31,7 @@ val androidModule = module {
     single { defaultHttpClient(HttpClientSettings(userAgent = "Wavedot/$APP_VERSION")) }
     single { createAndroidDatabase(androidContext()) }
     single<KeyValueStore>(SETTINGS_STORE) { FileKeyValueStore(File(androidContext().filesDir, "settings.properties")) }
-    single<KeyValueStore>(SECRETS_STORE) { FileKeyValueStore(File(androidContext().noBackupFilesDir, "secrets.properties")) }
+    single<KeyValueStore>(SECRETS_STORE) { FileKeyValueStore(File(androidContext().noBackupFilesDir, "secrets.properties"), ownerOnly = true) }
     single<StreamProxy> { LoopbackStreamProxy() }
     single { Media3AudioEngine(androidContext(), get()) }
     single<AudioEngine> { get<Media3AudioEngine>() }

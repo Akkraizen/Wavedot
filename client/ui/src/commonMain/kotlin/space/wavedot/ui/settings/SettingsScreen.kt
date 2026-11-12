@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -40,6 +41,7 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -458,12 +460,34 @@ private fun FoldersGroup(folders: List<String>, busy: Boolean, onIntent: (Settin
 }
 
 @Composable
+private fun DeleteHubAccountDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(WavedotIcons.Delete, contentDescription = null) },
+        title = { Text("Delete hub account?") },
+        text = { Text("The account, every device signed in to it and all synced data are removed from the hub. Favorites on this device stay.") },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Delete") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
 private fun SyncGroup(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(SegmentGap)) {
         if (state.hubConnected) {
+            var confirmAccountDeletion by remember { mutableStateOf(false) }
+            if (confirmAccountDeletion) {
+                DeleteHubAccountDialog(
+                    onConfirm = {
+                        confirmAccountDeletion = false
+                        onIntent(SettingsIntent.DeleteHubAccount)
+                    },
+                    onDismiss = { confirmAccountDeletion = false },
+                )
+            }
             SegmentedListItem(
                 onClick = { onIntent(SettingsIntent.SyncNow) },
-                shapes = ListItemDefaults.segmentedShapes(index = 0, count = 2),
+                shapes = ListItemDefaults.segmentedShapes(index = 0, count = 3),
                 colors = segmentedItemColors(),
                 leadingContent = { ShapedIcon(WavedotIcons.Sync) },
                 supportingContent = { Text("Favorites are synced through your hub") },
@@ -477,14 +501,25 @@ private fun SyncGroup(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit
             }
             SegmentedListItem(
                 onClick = { onIntent(SettingsIntent.DisconnectHub) },
-                shapes = ListItemDefaults.segmentedShapes(index = 1, count = 2),
+                shapes = ListItemDefaults.segmentedShapes(index = 1, count = 3),
                 colors = segmentedItemColors(),
                 leadingContent = { ShapedIcon(WavedotIcons.Close, active = false) },
+                supportingContent = { Text("Signs this device out; synced data stays on the hub") },
             ) {
                 Text("Disconnect", color = MaterialTheme.colorScheme.error)
             }
+            SegmentedListItem(
+                onClick = { confirmAccountDeletion = true },
+                shapes = ListItemDefaults.segmentedShapes(index = 2, count = 3),
+                colors = segmentedItemColors(),
+                leadingContent = { ShapedIcon(WavedotIcons.Close, active = false) },
+                supportingContent = { Text("Removes the account, its devices and everything synced") },
+            ) {
+                Text("Delete hub account", color = MaterialTheme.colorScheme.error)
+            }
         } else {
             var url by remember { mutableStateOf("") }
+            var registrationToken by remember { mutableStateOf("") }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -508,13 +543,23 @@ private fun SyncGroup(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit
                     value = url,
                     onValueChange = { url = it },
                     label = { Text("Hub URL") },
+                    placeholder = { Text("https://hub.example.com") },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = registrationToken,
+                    onValueChange = { registrationToken = it },
+                    label = { Text("Registration token") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
                     shape = MaterialTheme.shapes.large,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
-                        onClick = { onIntent(SettingsIntent.ConnectHub(url)) },
+                        onClick = { onIntent(SettingsIntent.ConnectHub(url, registrationToken)) },
                         enabled = url.isNotBlank() && !state.busy,
                         shapes = ButtonDefaults.shapes(),
                     ) {

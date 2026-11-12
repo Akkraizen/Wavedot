@@ -20,6 +20,7 @@ These rules apply to anyone changing this repository, people and coding agents a
    - All composables live in the `client/ui` module. `ui` depends on `presentation/*`, never on `app/shell` or `infra/*`; `app/shell` never depends on `ui`.
    - Plugins depend only on `core/plugin-api`.
    - Server `api` modules map DTOs and must not contain business rules. Server `data` modules implement ports.
+   - `./gradlew checkArchitecture` enforces these boundaries from the declared module dependencies (`build-logic/convention/src/main/kotlin/ArchitectureCheckPlugin.kt`). When a new module or layer appears, add its rule there.
 4. **One data contract.** New sources implement `MediaSource` capabilities and pass `MediaSourceContractTest`. Do not add source-specific branches to the domain or the UI.
 5. **Protocol changes must be additive.** Follow [docs/PROTOCOL.md](docs/PROTOCOL.md).
 6. **Every behavior change comes with tests.** Domain logic is tested with fakes from `core/testing`. Adapters are tested against a real or embedded dependency: in-memory SQLite, H2, MockEngine, testApplication, or generated audio.
@@ -33,7 +34,7 @@ These rules apply to anyone changing this repository, people and coding agents a
 ## Commands
 
 ```bash
-./gradlew jvmTest test
+./gradlew checkArchitecture jvmTest test
 ./gradlew :client:app:desktop:run
 ./gradlew :client:app:android:assembleDebug
 ./gradlew -Pwavedot.serverOnly=true :server:hub:app:installDist :server:updates:app:installDist

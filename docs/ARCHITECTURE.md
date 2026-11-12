@@ -142,6 +142,10 @@ The shared server modules are:
 
 See [SERVER.md](SERVER.md) for each service's behavior.
 
+## Enforcing the layers
+
+The `checkArchitecture` task reads the production dependencies every module declares and fails when one crosses a boundary described above, for example `ui` reaching `infra/*`, a plugin depending on anything but `core/plugin-api`, or a server `domain` module depending on Ktor-facing code. `app/shell` exports only what the platform modules need; plugins and the hub client are its implementation details.
+
 ## Testing strategy
 
 - **Domain logic** (queue, player controller, search aggregation, sync, release resolution) is tested in `commonTest` or plain JVM tests against fakes. No IO.

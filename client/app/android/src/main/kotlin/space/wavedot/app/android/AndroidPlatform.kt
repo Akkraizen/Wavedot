@@ -16,6 +16,8 @@ import space.wavedot.infra.database.createAndroidDatabase
 import space.wavedot.infra.network.HttpClientSettings
 import space.wavedot.infra.network.defaultHttpClient
 import space.wavedot.infra.playback.android.Media3AudioEngine
+import space.wavedot.infra.storage.AndroidKeystoreCipher
+import space.wavedot.infra.storage.EncryptedKeyValueStore
 import space.wavedot.infra.storage.FileKeyValueStore
 import space.wavedot.infra.streamproxy.LoopbackStreamProxy
 import space.wavedot.infra.updater.UpdateTarget
@@ -32,7 +34,12 @@ val androidModule = module {
     single { defaultHttpClient(HttpClientSettings(userAgent = "Wavedot/${BuildInfo.VERSION}")) }
     single { createAndroidDatabase(androidContext()) }
     single<KeyValueStore>(SETTINGS_STORE) { FileKeyValueStore(File(androidContext().filesDir, "settings.properties")) }
-    single<KeyValueStore>(SECRETS_STORE) { FileKeyValueStore(File(androidContext().noBackupFilesDir, "secrets.properties"), ownerOnly = true) }
+    single<KeyValueStore>(SECRETS_STORE) {
+        EncryptedKeyValueStore(
+            FileKeyValueStore(File(androidContext().noBackupFilesDir, "secrets.properties"), ownerOnly = true),
+            AndroidKeystoreCipher(),
+        )
+    }
     single<StreamProxy> { LoopbackStreamProxy() }
     single { Media3AudioEngine(androidContext(), get()) }
     single<AudioEngine> { get<Media3AudioEngine>() }

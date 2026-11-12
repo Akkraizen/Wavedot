@@ -15,6 +15,8 @@ import space.wavedot.infra.database.createJvmDatabase
 import space.wavedot.infra.network.HttpClientSettings
 import space.wavedot.infra.network.defaultHttpClient
 import space.wavedot.infra.playback.desktop.FfmpegAudioEngine
+import space.wavedot.infra.storage.DesktopSecretCipher
+import space.wavedot.infra.storage.EncryptedKeyValueStore
 import space.wavedot.infra.storage.FileKeyValueStore
 import space.wavedot.infra.streamproxy.LoopbackStreamProxy
 import space.wavedot.infra.updater.UpdateTarget
@@ -56,7 +58,10 @@ val desktopModule = module {
     single { defaultHttpClient(HttpClientSettings(userAgent = "Wavedot/${BuildInfo.VERSION}")) }
     single { createJvmDatabase(File(DesktopPaths.dataDir, "wavedot.db")) }
     single<KeyValueStore>(SETTINGS_STORE) { FileKeyValueStore(File(DesktopPaths.dataDir, "settings.properties")) }
-    single<KeyValueStore>(SECRETS_STORE) { FileKeyValueStore(File(DesktopPaths.dataDir, "secrets.properties"), ownerOnly = true) }
+    single<KeyValueStore>(SECRETS_STORE) {
+        val file = FileKeyValueStore(File(DesktopPaths.dataDir, "secrets.properties"), ownerOnly = true)
+        DesktopSecretCipher.forCurrentSystem()?.let { EncryptedKeyValueStore(file, it) } ?: file
+    }
     single<StreamProxy> { LoopbackStreamProxy() }
     single<AudioEngine> { FfmpegAudioEngine(get()) }
     single<LocalTrackScanner> {

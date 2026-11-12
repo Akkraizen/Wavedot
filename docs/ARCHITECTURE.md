@@ -76,7 +76,7 @@ Every source implementation must pass `MediaSourceContractTest`.
 | Module | Role |
 |---|---|
 | `infra/database` | SQLDelight schema: favorites, playlists, the lyrics cache, the pending change log for sync, and the sync revision. Implements `FavoritesRepository`, `PlaylistRepository`, `LyricsCache` and `SyncStateStore`. Schema changes ship as numbered `.sqm` migrations |
-| `infra/storage` | `FileKeyValueStore`, used for settings and plugin secrets |
+| `infra/storage` | `FileKeyValueStore` for settings; secrets (plugin credentials, the hub device token) go through `EncryptedKeyValueStore`, sealed by the Android Keystore (`AndroidKeystoreCipher`) or Windows DPAPI (`WindowsDataProtectionCipher`). On Linux and macOS the secrets file is plain but readable by its owner only |
 | `infra/network` | `createHttpClient` and `defaultHttpClient` (Ktor with OkHttp) |
 | `infra/stream-proxy` | `LoopbackStreamProxy` |
 | `infra/hub-client` | `HubClient`, which implements `SyncGateway` over `protocol-hub`, and `HubSettings` |

@@ -7,5 +7,8 @@ kotlin {
         commonMain.dependencies {
             api(projects.client.core.common)
         }
+        jvmMain.dependencies {
+            implementation(libs.jna.platform)
+        }
     }
 }

@@ -76,7 +76,8 @@
 ## Platforms and security
 
 - [ ] iOS target (Compose Multiplatform, AVAudioEngine-based `AudioEngine`, MediaPlayer integration).
-- [ ] Secure secret storage: Windows DPAPI or Credential Manager, Android Keystore, libsecret, macOS Keychain.
+- [x] Secure secret storage on Android (Keystore) and Windows (DPAPI).
+- [ ] Secure secret storage on Linux (libsecret) and macOS (Keychain); today the file is only restricted to its owner.
 - [ ] Desktop installer polish: icons, file associations, auto-start option.
 
 ## Engineering

@@ -10,6 +10,7 @@ kotlin {
             api(projects.client.presentation.library)
             api(projects.client.presentation.search)
             api(projects.client.presentation.settings)
+            api(projects.client.presentation.extensions)
             api(libs.coil.compose)
             implementation(libs.coil.network.ktor3)
             api(libs.lifecycle.viewmodel.compose)

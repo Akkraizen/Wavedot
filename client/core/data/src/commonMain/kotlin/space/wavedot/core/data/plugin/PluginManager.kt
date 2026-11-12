@@ -12,6 +12,8 @@ import space.wavedot.core.common.NoopLogger
 import space.wavedot.core.common.warn
 import space.wavedot.core.contract.LyricsProviderRegistry
 import space.wavedot.core.contract.MediaSourceRegistry
+import space.wavedot.core.contract.ui.RegisteredPluginUi
+import space.wavedot.core.contract.ui.UiExtensionRegistry
 import space.wavedot.core.model.SourceId
 import space.wavedot.plugin.api.PLUGIN_API_VERSION
 import space.wavedot.plugin.api.PluginContext
@@ -20,7 +22,11 @@ import space.wavedot.plugin.api.WavedotPlugin
 
 sealed interface PluginStatus {
     data object Unloaded : PluginStatus
-    data class Loaded(val sources: List<SourceId>, val lyricsProviders: List<String> = emptyList()) : PluginStatus
+    data class Loaded(
+        val sources: List<SourceId>,
+        val lyricsProviders: List<String> = emptyList(),
+        val hasUi: Boolean = false,
+    ) : PluginStatus
     data class Failed(val reason: String) : PluginStatus
 }
 
@@ -37,6 +43,7 @@ class PluginManager(
     plugins: List<WavedotPlugin>,
     private val registry: MediaSourceRegistry,
     private val lyricsRegistry: LyricsProviderRegistry,
+    private val uiRegistry: UiExtensionRegistry,
     private val contextFactory: PluginContextFactory,
     private val logger: Logger = NoopLogger,
 ) {
@@ -68,7 +75,13 @@ class PluginManager(
             val contribution = plugin.onLoad(contextFactory.create(plugin.manifest))
             contribution.sources.forEach(registry::register)
             contribution.lyricsProviders.forEach(lyricsRegistry::register)
-            PluginStatus.Loaded(contribution.sources.map { it.descriptor.id }, contribution.lyricsProviders.map { it.id })
+            val hasUi = !contribution.ui.isEmpty
+            if (hasUi) uiRegistry.register(RegisteredPluginUi(id, plugin.manifest.name, contribution.ui))
+            PluginStatus.Loaded(
+                sources = contribution.sources.map { it.descriptor.id },
+                lyricsProviders = contribution.lyricsProviders.map { it.id },
+                hasUi = hasUi,
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (t: Throwable) {
@@ -85,6 +98,7 @@ class PluginManager(
         if (current is PluginStatus.Loaded) {
             current.sources.forEach(registry::unregister)
             current.lyricsProviders.forEach(lyricsRegistry::unregister)
+            uiRegistry.unregister(id)
             runCatching { plugin.onUnload() }.onFailure { logger.warn(TAG, "Plugin $id failed to unload", it) }
         }
         setStatus(id, PluginStatus.Unloaded)

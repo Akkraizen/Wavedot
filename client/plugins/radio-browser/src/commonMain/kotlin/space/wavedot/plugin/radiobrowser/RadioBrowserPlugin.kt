@@ -15,8 +15,13 @@ class RadioBrowserPlugin(
         description = "Live stations from the community Radio Browser directory. No account needed.",
     )
 
-    override suspend fun onLoad(context: PluginContext): PluginContribution =
-        PluginContribution(listOf(RadioBrowserSource(RadioBrowserApi(context.httpClient, baseUrl))))
+    override suspend fun onLoad(context: PluginContext): PluginContribution {
+        val api = RadioBrowserApi(context.httpClient, baseUrl)
+        return PluginContribution(
+            sources = listOf(RadioBrowserSource(api)),
+            ui = RadioBrowserUi(api, context.settings).build(),
+        )
+    }
 
     companion object {
         const val ID: String = "radio-browser"

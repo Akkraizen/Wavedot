@@ -26,6 +26,14 @@ internal class RadioBrowserApi(
         parameter("reverse", true)
     }
 
+    suspend fun top(countryCode: String?, limit: Int): List<RbStation> = get("/json/stations/search") {
+        countryCode?.let { parameter("countrycode", it) }
+        parameter("limit", limit)
+        parameter("hidebroken", true)
+        parameter("order", "clickcount")
+        parameter("reverse", true)
+    }
+
     suspend fun stations(uuids: List<String>): List<RbStation> {
         if (uuids.isEmpty()) return emptyList()
         return get("/json/stations/byuuid") { parameter("uuids", uuids.joinToString(",")) }

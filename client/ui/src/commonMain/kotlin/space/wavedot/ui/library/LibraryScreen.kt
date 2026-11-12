@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -60,6 +61,7 @@ fun LibraryScreen(
     onIntent: (LibraryIntent) -> Unit,
     onAddToPlaylist: (List<Track>) -> Unit,
     modifier: Modifier = Modifier,
+    footer: @Composable () -> Unit = {},
 ) {
     val opened = state.opened
     if (opened != null) {
@@ -96,6 +98,7 @@ fun LibraryScreen(
                     onClick = { onIntent(LibraryIntent.Open(shelf.collection)) },
                 )
             }
+            item(key = "footer", span = { GridItemSpan(maxLineSpan) }) { footer() }
         }
     }
     if (creating) {

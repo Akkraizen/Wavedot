@@ -66,6 +66,7 @@ if (!serverOnly) include(
     ":client:presentation:library",
     ":client:presentation:search",
     ":client:presentation:settings",
+    ":client:presentation:extensions",
     ":client:ui",
     ":client:app:shell",
     ":client:app:android",

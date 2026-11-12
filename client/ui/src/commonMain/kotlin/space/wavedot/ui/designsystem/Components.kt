@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -213,7 +214,8 @@ fun TrackListItem(
                     Text(it.toClock(), style = MaterialTheme.typography.labelMedium)
                 }
                 onToggleFavorite?.let { FavoriteToggle(favorite, it) }
-                if (actions.isNotEmpty()) TrackActionsMenu(actions)
+                val allActions = actions + LocalExtraTrackActions.current(track)
+                if (allActions.isNotEmpty()) TrackActionsMenu(allActions)
             }
         },
     ) {
@@ -225,6 +227,8 @@ fun TrackListItem(
         )
     }
 }
+
+val LocalExtraTrackActions = compositionLocalOf<(Track) -> List<TrackAction>> { { emptyList() } }
 
 data class TrackAction(
     val label: String,

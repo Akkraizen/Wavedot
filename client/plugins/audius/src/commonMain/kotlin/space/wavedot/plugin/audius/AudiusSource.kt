@@ -89,7 +89,7 @@ internal class AudiusSource(private val api: AudiusApi) : MediaSource {
     companion object {
         val SOURCE_ID: SourceId = SourceId("audius")
         private const val PLAYLIST_PREFIX = "playlist/"
-        private const val ARTIST_PREFIX = "user/"
+        internal const val ARTIST_PREFIX = "user/"
         private const val MIME_TYPE = "audio/mpeg"
 
         internal fun track(track: AuTrack): Track = Track(

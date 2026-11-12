@@ -42,9 +42,10 @@ object Accents {
     fun available(systemSupported: Boolean): List<AccentColor> =
         if (systemSupported) listOf(System) + presets else presets
 
-    fun byId(id: String?): AccentColor = (presets + System).firstOrNull { it.id == id } ?: Default
+    fun byId(id: String?, extra: List<AccentColor> = emptyList()): AccentColor =
+        (presets + System + extra).firstOrNull { it.id == id } ?: Default
 
-    private fun seed(id: String, name: String, argb: Long): AccentColor =
+    fun seed(id: String, name: String, argb: Long): AccentColor =
         AccentColor(id, name, AccentKind.Seed(Color(argb)), Color(argb))
 }
 

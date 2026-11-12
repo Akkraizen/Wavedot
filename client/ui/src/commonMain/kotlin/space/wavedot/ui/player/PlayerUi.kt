@@ -53,7 +53,9 @@ import space.wavedot.presentation.player.PlayerIntent
 import space.wavedot.presentation.player.PlayerUiState
 import space.wavedot.ui.designsystem.Artwork
 import space.wavedot.ui.designsystem.FavoriteToggle
+import space.wavedot.ui.designsystem.LocalExtraTrackActions
 import space.wavedot.ui.designsystem.TrackAction
+import space.wavedot.ui.designsystem.TrackActionsMenu
 import space.wavedot.ui.designsystem.TrackListItem
 import space.wavedot.ui.designsystem.WavedotIcons
 import space.wavedot.ui.designsystem.toClock
@@ -126,6 +128,7 @@ fun PlayerBar(
                 TrackTitles(state, Modifier.weight(1f, fill = false))
                 FavoriteToggle(state.favorite, { onIntent(PlayerIntent.ToggleFavorite) })
                 AddToPlaylistButton { onAddToPlaylist(listOf(track)) }
+                ExtraTrackActions(track)
             }
             Column(
                 modifier = Modifier.weight(1.4f),
@@ -270,6 +273,7 @@ private fun NowPlayingHero(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.widthIn(max = 520.dp)) {
             FavoriteToggle(state.favorite, { onIntent(PlayerIntent.ToggleFavorite) })
             AddToPlaylistButton { onAddToPlaylist(listOf(track)) }
+            ExtraTrackActions(track)
             VolumeControl(state, onIntent, Modifier.weight(1f))
         }
     }
@@ -449,4 +453,10 @@ private fun AddToPlaylistButton(onClick: () -> Unit) {
     IconButton(onClick = onClick, shapes = IconButtonDefaults.shapes()) {
         Icon(WavedotIcons.PlaylistAdd, contentDescription = "Add to playlist", tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+@Composable
+private fun ExtraTrackActions(track: Track) {
+    val actions = LocalExtraTrackActions.current(track)
+    if (actions.isNotEmpty()) TrackActionsMenu(actions)
 }

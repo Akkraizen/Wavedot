@@ -3,6 +3,7 @@ package space.wavedot.core.data
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respondOk
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import space.wavedot.core.common.NoopLogger
 import space.wavedot.core.data.plugin.DefaultPluginContextFactory
@@ -13,6 +14,10 @@ import space.wavedot.core.contract.LyricsProvider
 import space.wavedot.core.contract.LyricsRequest
 import space.wavedot.core.data.source.DefaultLyricsProviderRegistry
 import space.wavedot.core.data.source.DefaultMediaSourceRegistry
+import space.wavedot.core.data.source.DefaultUiExtensionRegistry
+import space.wavedot.core.contract.ui.PluginScreen
+import space.wavedot.core.contract.ui.PluginUi
+import space.wavedot.core.contract.ui.UiIcon
 import space.wavedot.core.model.lyrics.Lyrics
 import space.wavedot.core.model.SourceId
 import space.wavedot.core.testing.FakeMediaSource
@@ -26,7 +31,12 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class PluginManagerTest {
-    private class SamplePlugin(id: String, private val fail: Boolean = false, apiVersion: Int = 1) : WavedotPlugin {
+    private class SamplePlugin(
+        id: String,
+        private val fail: Boolean = false,
+        apiVersion: Int = 1,
+        private val ui: PluginUi = PluginUi(),
+    ) : WavedotPlugin {
         override val manifest = PluginManifest(id, id, "1.0", apiVersion = apiVersion)
         var lastToken: String? = null
 
@@ -40,12 +50,14 @@ class PluginManagerTest {
                     override val displayName = "Lyrics"
                     override suspend fun find(request: LyricsRequest): Lyrics? = null
                 }),
+                ui = ui,
             )
         }
     }
 
     private val registry = DefaultMediaSourceRegistry()
     private val lyricsRegistry = DefaultLyricsProviderRegistry()
+    private val uiRegistry = DefaultUiExtensionRegistry()
     private val secrets = InMemoryKeyValueStore(mapOf("plugin.good.token" to "secret"))
     private val contextFactory = DefaultPluginContextFactory(
         HttpClient(MockEngine { respondOk() }),
@@ -57,7 +69,7 @@ class PluginManagerTest {
     @Test
     fun loadsPluginsAndRegistersTheirSources() = runTest {
         val good = SamplePlugin("good")
-        val manager = PluginManager(listOf(good, SamplePlugin("bad", fail = true)), registry, lyricsRegistry, contextFactory)
+        val manager = PluginManager(listOf(good, SamplePlugin("bad", fail = true)), registry, lyricsRegistry, uiRegistry, contextFactory)
         manager.loadAll()
 
         assertEquals(listOf(SourceId("good")), registry.sources.value.map { it.descriptor.id })
@@ -70,7 +82,7 @@ class PluginManagerTest {
 
     @Test
     fun unloadRemovesSources() = runTest {
-        val manager = PluginManager(listOf(SamplePlugin("good")), registry, lyricsRegistry, contextFactory)
+        val manager = PluginManager(listOf(SamplePlugin("good")), registry, lyricsRegistry, uiRegistry, contextFactory)
         manager.load("good")
         manager.unload("good")
         assertTrue(registry.sources.value.isEmpty())
@@ -80,8 +92,25 @@ class PluginManagerTest {
 
     @Test
     fun rejectsIncompatibleApiVersion() = runTest {
-        val manager = PluginManager(listOf(SamplePlugin("future", apiVersion = 99)), registry, lyricsRegistry, contextFactory)
+        val manager = PluginManager(listOf(SamplePlugin("future", apiVersion = 99)), registry, lyricsRegistry, uiRegistry, contextFactory)
         assertIs<PluginStatus.Failed>(manager.load("future"))
         assertTrue(registry.sources.value.isEmpty())
+    }
+
+    @Test
+    fun registersAndRemovesUiExtensions() = runTest {
+        val ui = PluginUi(screens = listOf(PluginScreen("home", "Home", UiIcon.EXPLORE, flowOf(emptyList()))))
+        val manager = PluginManager(listOf(SamplePlugin("good", ui = ui), SamplePlugin("plain")), registry, lyricsRegistry, uiRegistry, contextFactory)
+        manager.loadAll()
+
+        val registered = uiRegistry.extensions.value.single()
+        assertEquals("good", registered.pluginId)
+        assertEquals(ui, registered.ui)
+        val statuses = manager.entries.value.associate { it.manifest.id to it.status }
+        assertEquals(true, assertIs<PluginStatus.Loaded>(statuses["good"]).hasUi)
+        assertEquals(false, assertIs<PluginStatus.Loaded>(statuses["plain"]).hasUi)
+
+        manager.unload("good")
+        assertTrue(uiRegistry.extensions.value.isEmpty())
     }
 }

@@ -19,6 +19,7 @@ kotlin {
             api(projects.client.presentation.library)
             api(projects.client.presentation.search)
             api(projects.client.presentation.settings)
+            api(projects.client.presentation.extensions)
             api(libs.koin.core)
             api(libs.koin.core.viewmodel)
         }

@@ -14,6 +14,8 @@
 - [ ] **Internet Archive** and **Jamendo**: free catalogs.
 - [ ] Yandex Music: albums, artists, playlists, "My Wave" radio, lyrics.
 - [ ] Yandex Music: OAuth device flow in Settings instead of pasting a token.
+- [x] Plugin UI extensions: screens, library sections, track actions, settings pages and accent colors, described declaratively and drawn by the app.
+- [ ] Plugin UI: more node types (grids, images, progress, links that open the browser), navigation inside a plugin screen, actions in the search screen.
 - [ ] Load plugins at runtime from JARs (desktop: `ServiceLoader` and an isolated class loader), with signature checks.
 
 ## Library and core features

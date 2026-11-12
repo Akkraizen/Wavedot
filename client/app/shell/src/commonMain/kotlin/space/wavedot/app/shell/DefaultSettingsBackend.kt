@@ -20,7 +20,7 @@ import space.wavedot.presentation.settings.PluginSecretField
 import space.wavedot.presentation.settings.SettingsBackend
 
 private val PluginStatus.Loaded.contributesNothing: Boolean
-    get() = sources.isEmpty() && lyricsProviders.isEmpty()
+    get() = sources.isEmpty() && lyricsProviders.isEmpty() && !hasUi
 
 class DefaultSettingsBackend(
     private val pluginManager: PluginManager,

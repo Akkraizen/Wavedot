@@ -46,6 +46,7 @@ internal class FakeAudius {
                 val all = listOf(track("t1"), track("t2", streamable = false), track("t3"))
                 data(all.drop(offset).take(limit).joinToString(",", "[", "]"))
             }
+            path == "/v1/tracks/trending" -> data("[${track("t3")},${track("t2", streamable = false)},${track("t1")}]")
             path == "/v1/users/search" -> data("[$user]")
             path == "/v1/playlists/search" ->
                 data("""[{"id":"p1","playlist_name":"Beats to relax","track_count":2,"user":$user,"artwork":{"480x480":"https://img/p1.jpg"}}]""")
@@ -56,7 +57,9 @@ internal class FakeAudius {
         }
     })
 
-    fun source(): MediaSource = AudiusSource(AudiusApi(client, "https://audius.test/v1"))
+    val api = AudiusApi(client, "https://audius.test/v1")
+
+    fun source(): MediaSource = AudiusSource(api)
 }
 
 class AudiusSourceContractTest : MediaSourceContractTest() {

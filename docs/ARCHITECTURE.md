@@ -27,7 +27,7 @@ All client modules are Kotlin Multiplatform with `jvm` (desktop) and Android tar
 |---|---|---|
 | `core/model` | `space.wavedot.core.model` | Immutable entities: `Track`, `Album`, `Artist`, `Playlist`, `MediaId`, `Page`, `AudioQuality`, plus stream descriptors (`StreamSource`, `ByteStream`) |
 | `core/common` | `space.wavedot.core.common` | Errors (`WavedotError`, `WavedotException`), `Logger`, `DispatcherProvider`, `TimeProvider`, `KeyValueStore` |
-| `core/contract` | `space.wavedot.core.contract` | **The single data contract**: `MediaSource`, `Catalog`, `Search`, `Streaming`, `RemoteLibrary`, `EntityProvider<T>`, `PagedQuery<Q, T>`, `MediaSourceRegistry` |
+| `core/contract` | `space.wavedot.core.contract` | **The single data contract**: `MediaSource`, `Catalog`, `Search`, `Streaming`, `RemoteLibrary`, `EntityProvider<T>`, `PagedQuery<Q, T>`, `MediaSourceRegistry`; the declarative plugin UI model (`ui.PluginUi`, `UiNode`, `UiExtensionRegistry`) |
 | `core/plugin-api` | `space.wavedot.plugin.api` | The plugin SDK: `WavedotPlugin`, `PluginManifest`, `PluginContext`, `PluginStore`, HTTP byte-stream helper |
 | `core/playback-api` | `space.wavedot.playback.api` | Low-level playback ports: `AudioEngine`, `EngineState`, `StreamProxy` |
 | `core/domain` | `space.wavedot.core.domain` | Use cases and player logic: `PlayerController`, `PlaybackQueue`, `ResolveStream`, `SearchCatalog`, `LoadCollection`, `ToggleFavorite`, `PlaylistEditor`, `GetLyrics`, `SyncLibrary`, `CheckForUpdates`; ports `FavoritesRepository`, `PlaylistRepository`, `LyricsCache`, `LocalLibrary`, `SyncGateway`, `SyncStateStore`, `UpdateChecker` |
@@ -91,11 +91,12 @@ The client's interface is split in two layers:
 
 | Module | Package | Contents | Compose |
 |---|---|---|---|
-| `presentation/<feature>` (`library`, `player`, `search`, `settings`) | `space.wavedot.presentation.<feature>` | `ViewModel`, `UiState`, `Intent`, and the ports a feature needs (for example `SettingsBackend`) | No |
+| `presentation/<feature>` (`library`, `player`, `search`, `settings`, `extensions`) | `space.wavedot.presentation.<feature>` | `ViewModel`, `UiState`, `Intent`, and the ports a feature needs (for example `SettingsBackend`) | No |
 | `ui` | `space.wavedot.ui.*` | Every composable: the design system (`ui.designsystem`), the screens (`ui.library`, `ui.search`, `ui.player`, `ui.settings`), the root `WavedotApp` (`ui.app`) and the desktop window chrome (`ui.window`, `jvmMain`) | Yes |
 
 - `presentation/*` depends on `core/domain` and `lifecycle-viewmodel` only, so view models are tested as plain Kotlin and cannot reach the UI toolkit. `ui` depends on `presentation/*` and never on `app/shell` or `infra/*`.
 - `app/shell` wires `presentation/*` to the domain and infrastructure with Koin and has no Compose dependency. `app/desktop` and `app/android` are the only places that host the UI: they create the window or activity and call `WavedotApp(httpClient, imageCacheDirectory, …)`.
+- Plugin UI extensions (see [PLUGINS.md](PLUGINS.md#ui-extensions)) flow from `PluginManager` into `UiExtensionRegistry`, are exposed by `ExtensionsViewModel` in `presentation/extensions`, and are drawn by `ui.extensions`. `WavedotApp` adds plugin screens to the navigation, plugin sections to the library footer, plugin settings pages to Settings, plugin accents to the accent list, and plugin track actions to every track menu through `LocalExtraTrackActions`.
 - The design system (`ui.designsystem`) holds the Material 3 Expressive theme, icons and shared components. The accent color is user-selectable: presets generate a full light and dark scheme from a seed color (`color/SeedScheme.kt`, CIE LCh tonal palettes with Material 3 role tones), `System` uses Android 12+ dynamic color or the Windows accent color, and the chosen id is stored by `AppearanceSettings` in `app/shell` and exposed to the UI by `AppearanceViewModel`. Artwork is loaded with Coil 3: remote URLs go through the app's Ktor client, local covers are plain file paths, and `WavedotApp` installs the image loader with a disk cache in the platform cache directory.
 - Each `presentation/*` module has a `ViewModel` that exposes a `StateFlow<UiState>` and accepts `Intent`s (MVI); the matching composables in `ui` are stateless.
 - Presentation modules depend only on `core/domain` and on ports they declare themselves. For example, `SettingsBackend` lets the settings view model stay free of plugin and hub internals.

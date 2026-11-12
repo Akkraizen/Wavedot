@@ -17,10 +17,12 @@ import space.wavedot.core.common.SystemTimeProvider
 import space.wavedot.core.common.TimeProvider
 import space.wavedot.core.contract.LyricsProviderRegistry
 import space.wavedot.core.contract.MediaSourceRegistry
+import space.wavedot.core.contract.ui.UiExtensionRegistry
 import space.wavedot.core.data.plugin.DefaultPluginContextFactory
 import space.wavedot.core.data.plugin.PluginManager
 import space.wavedot.core.data.source.DefaultLyricsProviderRegistry
 import space.wavedot.core.data.source.DefaultMediaSourceRegistry
+import space.wavedot.core.data.source.DefaultUiExtensionRegistry
 import space.wavedot.core.domain.library.FavoritesRepository
 import space.wavedot.core.domain.library.LocalLibrary
 import space.wavedot.core.domain.library.PlaylistEditor
@@ -53,6 +55,7 @@ import space.wavedot.plugin.lrclib.LrclibPlugin
 import space.wavedot.plugin.radiobrowser.RadioBrowserPlugin
 import space.wavedot.plugin.subsonic.SubsonicPlugin
 import space.wavedot.plugin.yandexmusic.YandexMusicPlugin
+import space.wavedot.presentation.extensions.ExtensionsViewModel
 import space.wavedot.presentation.library.LibraryViewModel
 import space.wavedot.presentation.library.PlaylistPickerViewModel
 import space.wavedot.presentation.player.LyricsViewModel
@@ -79,6 +82,7 @@ val coreModule: Module = module {
     single<TimeProvider> { SystemTimeProvider }
     single<MediaSourceRegistry> { DefaultMediaSourceRegistry() }
     single<LyricsProviderRegistry> { DefaultLyricsProviderRegistry() }
+    single<UiExtensionRegistry> { DefaultUiExtensionRegistry() }
     single<LyricsCache> { SqlLyricsCache(get(), Dispatchers.IO) }
     factory { GetLyrics(get(), get(), get(), get(), get()) }
     single {
@@ -86,6 +90,7 @@ val coreModule: Module = module {
             plugins = get(),
             registry = get(),
             lyricsRegistry = get(),
+            uiRegistry = get(),
             contextFactory = DefaultPluginContextFactory(get(), get(SETTINGS_STORE), get(SECRETS_STORE), get()),
             logger = get(),
         )
@@ -138,6 +143,7 @@ val viewModelModule: Module = module {
     viewModel { SearchViewModel(get(), get(), get(), get(), get()) }
     viewModelOf(::SettingsViewModel)
     viewModelOf(::AppearanceViewModel)
+    viewModelOf(::ExtensionsViewModel)
 }
 
 fun wavedotModules(platform: Module): List<Module> = listOf(platform, builtInPluginsModule, coreModule, viewModelModule)

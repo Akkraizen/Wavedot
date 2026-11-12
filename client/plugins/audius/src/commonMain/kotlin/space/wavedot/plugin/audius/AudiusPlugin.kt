@@ -15,8 +15,10 @@ class AudiusPlugin(
         description = "Free streaming from the open Audius catalog: tracks, artists and playlists. No account needed.",
     )
 
-    override suspend fun onLoad(context: PluginContext): PluginContribution =
-        PluginContribution(listOf(AudiusSource(AudiusApi(context.httpClient, baseUrl))))
+    override suspend fun onLoad(context: PluginContext): PluginContribution {
+        val api = AudiusApi(context.httpClient, baseUrl)
+        return PluginContribution(sources = listOf(AudiusSource(api)), ui = AudiusUi(api).build())
+    }
 
     companion object {
         const val ID: String = "audius"

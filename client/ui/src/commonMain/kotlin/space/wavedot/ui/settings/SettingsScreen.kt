@@ -73,7 +73,12 @@ import space.wavedot.ui.designsystem.color.systemColorScheme
 import space.wavedot.ui.designsystem.segmentedItemColors
 
 @Composable
-fun SettingsScreen(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit, modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    state: SettingsUiState,
+    onIntent: (SettingsIntent) -> Unit,
+    modifier: Modifier = Modifier,
+    extras: SettingsExtras = SettingsExtras(),
+) {
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(state.message) {
         val message = state.message ?: return@LaunchedEffect
@@ -86,11 +91,11 @@ fun SettingsScreen(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit, m
         when {
             wide -> Row(Modifier.fillMaxSize()) {
                 val selected = opened ?: state.sections.first()
-                SectionList(state, selected, onIntent, Modifier.width(340.dp).fillMaxHeight())
-                SectionPane(selected, state, onIntent, showBack = false, modifier = Modifier.weight(1f).fillMaxHeight())
+                SectionList(state, selected, onIntent, extras, Modifier.width(340.dp).fillMaxHeight())
+                SectionPane(selected, state, onIntent, extras, showBack = false, modifier = Modifier.weight(1f).fillMaxHeight())
             }
-            opened == null -> SectionList(state, null, onIntent, Modifier.fillMaxSize())
-            else -> SectionPane(opened, state, onIntent, showBack = true, modifier = Modifier.fillMaxSize())
+            opened == null -> SectionList(state, null, onIntent, extras, Modifier.fillMaxSize())
+            else -> SectionPane(opened, state, onIntent, extras, showBack = true, modifier = Modifier.fillMaxSize())
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(16.dp))
     }
@@ -103,6 +108,7 @@ private fun SectionList(
     state: SettingsUiState,
     selected: SettingsSection?,
     onIntent: (SettingsIntent) -> Unit,
+    extras: SettingsExtras,
     modifier: Modifier,
 ) {
     Column(modifier.verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
@@ -119,7 +125,7 @@ private fun SectionList(
                         containerColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
                     ),
                     leadingContent = { ShapedIcon(section.icon) },
-                    supportingContent = { Text(section.summary(state)) },
+                    supportingContent = { Text(section.summary(state, extras)) },
                     trailingContent = if (selected == null) {
                         { Icon(WavedotIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                     } else {
@@ -151,8 +157,8 @@ private val SettingsSection.icon: ImageVector
         SettingsSection.ABOUT -> WavedotIcons.InfoFilled
     }
 
-private fun SettingsSection.summary(state: SettingsUiState): String = when (this) {
-    SettingsSection.APPEARANCE -> "Accent color: ${Accents.byId(state.accentId).name}"
+private fun SettingsSection.summary(state: SettingsUiState, extras: SettingsExtras): String = when (this) {
+    SettingsSection.APPEARANCE -> "Accent color: ${Accents.byId(state.accentId, extras.accents).name}"
     SettingsSection.PLUGINS -> {
         val active = state.plugins.count { it.active }
         "$active of ${state.plugins.size} active"
@@ -171,6 +177,7 @@ private fun SectionPane(
     section: SettingsSection,
     state: SettingsUiState,
     onIntent: (SettingsIntent) -> Unit,
+    extras: SettingsExtras,
     showBack: Boolean,
     modifier: Modifier,
 ) {
@@ -194,9 +201,9 @@ private fun SectionPane(
             when (section) {
                 SettingsSection.APPEARANCE -> {
                     Spacer(Modifier.height(12.dp))
-                    AccentPicker(Accents.available(isSystemAccentSupported()), Accents.byId(state.accentId).id) { onIntent(SettingsIntent.SelectAccent(it)) }
+                    AccentPicker(Accents.available(isSystemAccentSupported()) + extras.accents, Accents.byId(state.accentId, extras.accents).id) { onIntent(SettingsIntent.SelectAccent(it)) }
                 }
-                SettingsSection.PLUGINS -> PluginsSection(state, onIntent)
+                SettingsSection.PLUGINS -> PluginsSection(state, onIntent, extras)
                 SettingsSection.LIBRARY -> {
                     SectionHeader("Music folders", Modifier.padding(start = 8.dp))
                     FoldersGroup(state.musicFolders.orEmpty(), state.busy, onIntent)
@@ -215,7 +222,7 @@ private fun SectionPane(
 }
 
 @Composable
-private fun PluginsSection(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit) {
+private fun PluginsSection(state: SettingsUiState, onIntent: (SettingsIntent) -> Unit, extras: SettingsExtras) {
     Text(
         text = "Plugins add music sources and lyrics. Expand a plugin to set it up.",
         style = MaterialTheme.typography.bodyMedium,
@@ -224,11 +231,11 @@ private fun PluginsSection(state: SettingsUiState, onIntent: (SettingsIntent) ->
     )
     if (state.sourcePlugins.isNotEmpty()) {
         SectionHeader("Sources", Modifier.padding(start = 8.dp))
-        SegmentedGroup(state.sourcePlugins) { plugin, index, count -> PluginItem(plugin, index, count, onIntent) }
+        SegmentedGroup(state.sourcePlugins) { plugin, index, count -> PluginItem(plugin, index, count, onIntent, extras.pluginPage(plugin.id)) }
     }
     if (state.lyricsPlugins.isNotEmpty()) {
         SectionHeader("Lyrics", Modifier.padding(start = 8.dp))
-        SegmentedGroup(state.lyricsPlugins) { plugin, index, count -> PluginItem(plugin, index, count, onIntent) }
+        SegmentedGroup(state.lyricsPlugins) { plugin, index, count -> PluginItem(plugin, index, count, onIntent, extras.pluginPage(plugin.id)) }
     }
 }
 
@@ -345,7 +352,13 @@ private fun ShapedIcon(icon: ImageVector, active: Boolean = true) {
 }
 
 @Composable
-private fun PluginItem(plugin: PluginInfo, index: Int, count: Int, onIntent: (SettingsIntent) -> Unit) {
+private fun PluginItem(
+    plugin: PluginInfo,
+    index: Int,
+    count: Int,
+    onIntent: (SettingsIntent) -> Unit,
+    page: (@Composable () -> Unit)?,
+) {
     var expanded by remember(plugin.id) { mutableStateOf(!plugin.active) }
     Column(
         Modifier
@@ -368,7 +381,12 @@ private fun PluginItem(plugin: PluginInfo, index: Int, count: Int, onIntent: (Se
         ) {
             Text(plugin.name)
         }
-        AnimatedVisibility(expanded && plugin.fields.isNotEmpty()) {
+        if (page != null) {
+            AnimatedVisibility(expanded) {
+                Box(Modifier.padding(start = 72.dp, end = 16.dp, bottom = 16.dp)) { page() }
+            }
+        }
+        AnimatedVisibility(page == null && expanded && plugin.fields.isNotEmpty()) {
             Column(Modifier.padding(start = 72.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 plugin.fields.forEach { field ->
                     var value by remember(plugin.id, field.key, field.value) { mutableStateOf(field.value.orEmpty()) }

@@ -56,6 +56,32 @@ Built-in providers:
 - **Yandex Music.** `GET /tracks/{id}/lyrics` with `format` set to `LRC` or `TEXT`, `timeStamp`, and `sign = Base64(HMAC-SHA256(key, trackId + timeStamp))`. The response contains a `downloadUrl` with the text, plus writers and the licensing partner, which are shown as credits.
 - **LRCLIB** (`plugins/lrclib`). This is the free lrclib.net API and needs no key. The plugin first tries an exact match with `GET /api/get`, using title, artist, album and duration. If that fails, it retries with a cleaned title, without suffixes such as "(Remastered)". As a last resort it calls `GET /api/search` and accepts a candidate within 3 seconds of the track's duration, preferring synced lyrics.
 
+## UI extensions
+
+Plugins change the interface declaratively. A plugin returns a `PluginUi` in `PluginContribution.ui`; the app draws it with its own components, so plugins never depend on Compose and every extension looks like the rest of the app. The types live in `space.wavedot.core.contract.ui` and are re-exported by the plugin API.
+
+| Extension point | Type | Where it appears |
+|---|---|---|
+| Screens | `PluginScreen(id, title, icon, content)` | A destination in the navigation rail or bar, between Search and Settings |
+| Library sections | `PluginSection(id, title, content)` | Below the playlist grid in the library |
+| Track actions | `PluginTrackAction(id, label, icon, action, appliesTo)` | Every track menu (library, search, queue, plugin lists) and the player |
+| Settings page | `PluginUi.settings` | Replaces the generated fields of the plugin in Settings → Plugins |
+| Accent colors | `PluginAccent(id, name, argb)` | Added to Settings → Appearance; the scheme is generated from the seed |
+
+`content` is a `Flow<List<UiNode>>`: emit new lists to update the screen (for example after a setting changes). The host shows a loading indicator until the first list arrives and turns a failed flow into an error banner. Nodes:
+
+| Node | Rendering |
+|---|---|
+| `Heading`, `Text` (`TITLE`, `BODY`, `CAPTION`), `Status` (`INFO`, `SUCCESS`, `WARNING`, `ERROR`) | Text and banners |
+| `Tracks` | A track list; tapping a track plays the list from it |
+| `Cards` | A horizontal row of artwork cards with an action |
+| `Button` (`PRIMARY`, `TONAL`, `TEXT`), `Toggle`, `TextField`, `Choice` | Controls; each calls the plugin's `UiAction` or `UiValueAction` |
+| `Loading` | A loading indicator |
+
+Actions are suspend functions that return a `UiEffect`: `None`, `Message(text)` (shown as a snackbar) or `Play(tracks, startIndex)`. Exceptions thrown by actions become messages. Icons come from the fixed `UiIcon` set. Keys are namespaced by plugin id (`radio-browser/stations`), so plugins cannot collide, and everything a plugin contributed disappears when it is unloaded or reloaded.
+
+The built-in plugins use this API: Internet radio adds a **Radio** screen with the most popular stations by country and a settings page with the same choice; Audius adds a **Trending on Audius** library section, a **More from this artist** track action and an **Audius** accent color.
+
 ## Registering a built-in plugin
 
 Add the module to `settings.gradle.kts`, depend on it from `client/app/shell`, and list it in `builtInPluginsModule` (`WavedotModules.kt`). Loading external plugins from JARs at runtime is planned (see TODO.md).

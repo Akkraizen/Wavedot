@@ -36,6 +36,10 @@ internal class FakeRadioBrowser {
         val json = headersOf(HttpHeaders.ContentType, "application/json")
         val path = request.url.encodedPath
         when {
+            path == "/json/stations/search" && request.url.parameters["name"] == null -> {
+                val country = request.url.parameters["countrycode"] ?: "ALL"
+                respond("[${station("$country-1", "Top $country")}]", HttpStatusCode.OK, json)
+            }
             path == "/json/stations/search" -> {
                 val offset = request.url.parameters["offset"]!!.toInt()
                 val limit = request.url.parameters["limit"]!!.toInt()
@@ -54,7 +58,9 @@ internal class FakeRadioBrowser {
         }
     })
 
-    fun source(): MediaSource = RadioBrowserSource(RadioBrowserApi(client, "https://rb.test"))
+    val api = RadioBrowserApi(client, "https://rb.test")
+
+    fun source(): MediaSource = RadioBrowserSource(api)
 }
 
 class RadioBrowserSourceContractTest : MediaSourceContractTest() {

@@ -25,6 +25,9 @@ internal class AudiusApi(
     suspend fun searchPlaylists(query: String, offset: Int, limit: Int): List<AuPlaylist> =
         get("/playlists/search") { paged(offset, limit); parameter("query", query) } ?: emptyList()
 
+    suspend fun trending(limit: Int): List<AuTrack> =
+        get<List<AuTrack>>("/tracks/trending") { parameter("limit", limit) }.orEmpty().take(limit)
+
     suspend fun track(id: String): AuTrack? = get("/tracks/$id")
 
     suspend fun playlistTracks(id: String): List<AuTrack> = get("/playlists/$id/tracks") ?: emptyList()

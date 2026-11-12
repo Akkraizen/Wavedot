@@ -82,6 +82,9 @@
 
 ## Engineering
 
-- [ ] CI: build, tests, Android lint, desktop packaging.
-- [ ] Static analysis (detekt, ktlint) and dependency update checks.
+- [x] CI: layer check, server and client tests, Android debug build, Windows secret storage tests.
+- [ ] CI: Android lint, desktop packaging.
+- [x] Dependency update checks (Dependabot) and a pinned Gradle distribution checksum.
+- [ ] Static analysis (detekt, ktlint).
+- [ ] Gradle dependency verification metadata, and container images and GitHub Actions pinned by digest.
 - [ ] UI tests for the Compose screens.

@@ -15,6 +15,7 @@ data class HttpClientSettings(
     val userAgent: String = "Wavedot",
     val connectTimeoutMillis: Long = 15_000,
     val requestTimeoutMillis: Long? = null,
+    val socketTimeoutMillis: Long = 30_000,
 )
 
 fun createHttpClient(
@@ -29,6 +30,7 @@ fun createHttpClient(
     install(HttpTimeout) {
         connectTimeoutMillis = settings.connectTimeoutMillis
         requestTimeoutMillis = settings.requestTimeoutMillis
+        socketTimeoutMillis = settings.socketTimeoutMillis
     }
     defaultRequest {
         header(HttpHeaders.UserAgent, settings.userAgent)

@@ -14,7 +14,16 @@ class WavedotPlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         val host = application as? PlayerHost ?: error("Application must implement PlayerHost")
-        session = MediaSession.Builder(this, host.sessionPlayer).build()
+        session = MediaSession.Builder(this, host.sessionPlayer).setCallback(TrustedControllersOnly()).build()
+    }
+
+    private inner class TrustedControllersOnly : MediaSession.Callback {
+        override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
+            val allowed = controller.packageName == packageName ||
+                controller.isTrusted ||
+                session.isMediaNotificationController(controller)
+            return if (allowed) super.onConnect(session, controller) else MediaSession.ConnectionResult.reject()
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session

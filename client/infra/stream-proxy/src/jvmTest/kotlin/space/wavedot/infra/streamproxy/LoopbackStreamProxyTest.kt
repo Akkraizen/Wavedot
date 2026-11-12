@@ -6,6 +6,7 @@ import space.wavedot.core.model.stream.ByteStreamOpener
 import space.wavedot.core.model.stream.StreamSource
 import java.net.HttpURLConnection
 import java.net.Proxy
+import java.net.Socket
 import java.net.URI
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -82,5 +83,25 @@ class LoopbackStreamProxyTest {
         assertEquals(ByteRange(5, 9), ByteRange.parse("bytes=5-9"))
         assertNull(ByteRange.parse("bytes=-500"))
         assertNull(ByteRange.parse("items=1-2"))
+    }
+
+    @Test
+    fun refusesRequestsAddressedToOtherHosts() = runBlocking {
+        val url = URI(proxy.publish(source))
+        fun statusFor(hostHeader: String): String = Socket(url.host, url.port).use { socket ->
+            socket.getOutputStream().write("GET ${url.path} HTTP/1.1\r\nHost: $hostHeader\r\nConnection: close\r\n\r\n".toByteArray())
+            socket.getInputStream().bufferedReader().readLine()
+        }
+        assertEquals("HTTP/1.1 403 Forbidden", statusFor("rebound.evil.test:${url.port}"))
+        assertEquals("HTTP/1.1 200 OK", statusFor("127.0.0.1:${url.port}"))
+        assertEquals("HTTP/1.1 200 OK", statusFor("localhost:${url.port}"))
+    }
+
+    @Test
+    fun fallsBackToOctetStreamForUnparsableMimeTypes() = runBlocking {
+        val odd = StreamSource.Custom("not a mime type", ByteStreamOpener { offset -> memoryStream(offset) })
+        val connection = open(proxy.publish(odd))
+        assertEquals(200, connection.responseCode)
+        assertEquals("application/octet-stream", connection.contentType)
     }
 }

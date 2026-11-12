@@ -9,6 +9,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonPrimitive
 import space.wavedot.core.common.InMemoryKeyValueStore
 import space.wavedot.core.domain.library.Favorite
 import space.wavedot.core.domain.library.FavoriteChange
@@ -45,8 +46,15 @@ class HubClientTest {
             request.url.encodedPath == "/v1/sync/changes" -> {
                 val change = ChangeDto("favorites", track.id.toString(), deleted = true, updatedAt = 9)
                 val unknown = ChangeDto("future-collection", "x", deleted = false, updatedAt = 9)
+                val malformedKey = ChangeDto("favorites", "no-separator", deleted = true, updatedAt = 9)
+                val malformedPayload = ChangeDto("favorites", "test:7", deleted = false, payload = JsonPrimitive("oops"), updatedAt = 9)
                 val body = PullChangesResponse(
-                    listOf(RevisionedChangeDto(8, "other", change), RevisionedChangeDto(9, "other", unknown)),
+                    listOf(
+                        RevisionedChangeDto(6, "other", malformedKey),
+                        RevisionedChangeDto(7, "other", malformedPayload),
+                        RevisionedChangeDto(8, "other", change),
+                        RevisionedChangeDto(9, "other", unknown),
+                    ),
                     revision = 9,
                     hasMore = false,
                 )
@@ -80,7 +88,7 @@ class HubClientTest {
     }
 
     @Test
-    fun pullsAndIgnoresUnknownCollections() = runTest {
+    fun pullsAndIgnoresUnknownCollectionsAndMalformedRecords() = runTest {
         client.createAccount("https://hub.test", "Desk", PlatformDto.WINDOWS)
         val batch = client.pull(0)
         assertEquals(9L, batch.revision)

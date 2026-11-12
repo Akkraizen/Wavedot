@@ -31,14 +31,16 @@ internal object SyncRecordMapper {
     }
 
     fun fromDto(dto: ChangeDto): SyncRecord? = when (dto.collection) {
-        SyncCollections.FAVORITES -> {
-            val id = MediaId.parse(dto.key)
-            val favorite = if (dto.deleted) null else dto.payload
-                ?.let { ProtocolJson.decodeFromJsonElement<FavoritePayloadDto>(it) }
-                ?.toFavorite(id)
-            SyncRecord.Favorite(FavoriteChange(id, favorite, dto.updatedAt))
-        }
+        SyncCollections.FAVORITES -> runCatching { favoriteFromDto(dto) }.getOrNull()
         else -> null
+    }
+
+    private fun favoriteFromDto(dto: ChangeDto): SyncRecord.Favorite {
+        val id = MediaId.parse(dto.key)
+        val favorite = if (dto.deleted) null else dto.payload
+            ?.let { ProtocolJson.decodeFromJsonElement<FavoritePayloadDto>(it) }
+            ?.toFavorite(id)
+        return SyncRecord.Favorite(FavoriteChange(id, favorite, dto.updatedAt))
     }
 
     private fun Favorite.toPayload() = FavoritePayloadDto(

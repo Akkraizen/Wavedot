@@ -6,9 +6,11 @@ import space.wavedot.core.common.TimeProvider
 import space.wavedot.core.common.toWavedotError
 import space.wavedot.core.contract.MediaSource
 import space.wavedot.core.contract.MediaSourceRegistry
+import space.wavedot.core.contract.SourceKind
 import space.wavedot.core.domain.library.ChangeOrigin
 import space.wavedot.core.domain.library.FavoritesRepository
 import space.wavedot.core.model.Cursor
+import space.wavedot.core.model.SourceId
 import space.wavedot.core.model.Track
 
 class SyncLibrary(
@@ -18,6 +20,7 @@ class SyncLibrary(
     private val stateStore: SyncStateStore,
     private val time: TimeProvider,
     private val importLimit: Int = DEFAULT_IMPORT_LIMIT,
+    private val pushBatchSize: Int = DEFAULT_PUSH_BATCH_SIZE,
 ) {
     suspend operator fun invoke(): SyncReport {
         val errors = mutableListOf<String>()
@@ -59,11 +62,13 @@ class SyncLibrary(
     }
 
     private suspend fun pushPending(): Int {
-        val pending = favorites.pendingChanges()
-        if (pending.isEmpty()) return 0
-        gateway.push(pending.map { SyncRecord.Favorite(it) })
-        favorites.markSynced(pending)
-        return pending.size
+        val (deviceOnly, portable) = favorites.pendingChanges().partition { isDeviceOnly(it.id.source) }
+        if (deviceOnly.isNotEmpty()) favorites.markSynced(deviceOnly)
+        portable.chunked(pushBatchSize).forEach { batch ->
+            gateway.push(batch.map { SyncRecord.Favorite(it) })
+            favorites.markSynced(batch)
+        }
+        return portable.size
     }
 
     private suspend fun pullRemote(): Int {
@@ -71,14 +76,20 @@ class SyncLibrary(
         var total = 0
         do {
             val batch = gateway.pull(revision)
-            val changes = batch.records.filterIsInstance<SyncRecord.Favorite>().map { it.change }
+            val changes = batch.records
+                .filterIsInstance<SyncRecord.Favorite>()
+                .map { it.change }
+                .filterNot { isDeviceOnly(it.id.source) }
             if (changes.isNotEmpty()) favorites.applyRemote(changes)
-            total += batch.records.size
+            total += changes.size
             revision = batch.revision
             stateStore.saveRevision(revision)
         } while (batch.hasMore)
         return total
     }
+
+    private fun isDeviceOnly(source: SourceId): Boolean =
+        registry.find(source)?.descriptor?.kind == SourceKind.LOCAL
 
     private suspend fun guard(errors: MutableList<String>, scope: String, block: suspend () -> Unit) {
         try {
@@ -92,5 +103,6 @@ class SyncLibrary(
 
     companion object {
         const val DEFAULT_IMPORT_LIMIT: Int = 5000
+        const val DEFAULT_PUSH_BATCH_SIZE: Int = 500
     }
 }

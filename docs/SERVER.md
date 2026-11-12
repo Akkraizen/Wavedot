@@ -8,15 +8,22 @@ The hub is the account and synchronization service. It is deliberately not named
 
 ### Model
 
-- **Account and Device.** `POST /v1/accounts` creates an account and its first device, and returns a device token. Only the token's SHA-256 hash is stored.
+- **Account and Device.** `POST /v1/accounts` creates an account and its first device, and returns a device token. Only the token's SHA-256 hash is stored. Registration follows `HUB_REGISTRATION_MODE`: `TOKEN` (the default) requires the shared `HUB_REGISTRATION_TOKEN` in the request and refuses everything while the token is empty, `OPEN` accepts anyone, `CLOSED` accepts no one.
+- **Device management.** `GET /v1/devices` lists the account's devices, `DELETE /v1/devices/{id}` revokes one (its token stops working at once), and `DELETE /v1/account` removes the account with all devices and synced data. Device tokens do not expire; revoke a lost device from another one or delete the account.
 - **Library items.** Each item is keyed by `(account, collection, key)` and stores the latest state: payload, deleted flag, the client `updatedAt`, and a per-account monotonically increasing `revision`.
-- **Collections.** The known collections are `favorites`, `playlists`, `history` and `settings`. Each has a `CollectionPolicy` that validates changes. Adding a collection means registering a policy; the schema does not change.
+- **Collections.** The known collections are `favorites`, `playlists`, `history` and `settings`. Each has a `CollectionPolicy` that validates changes: the key length, a JSON object payload within `HUB_MAX_PAYLOAD_BYTES`, and for `favorites` a `<source>:<id>` key. Adding a collection means registering a policy; the schema does not change.
 
 ### Sync algorithm
 
-- **Push** (`POST /v1/sync/changes`): for each change, the hub validates it against its collection policy and then applies last-writer-wins. A change older than the stored one is rejected and reported back to the client. Every accepted change gets the next account revision. Subscribers are notified when anything was applied.
+- **Push** (`POST /v1/sync/changes`): the hub locks the account, validates each change against its collection policy and then applies last-writer-wins on the client `updatedAt`. A change older than the stored one, a timestamp further ahead of the server clock than `HUB_MAX_CLOCK_SKEW`, or a new key beyond `HUB_MAX_ITEMS_PER_ACCOUNT` is rejected and reported back to the client. Every accepted change gets the next account revision. The response carries the account revision after the push. Subscribers are notified when anything was applied.
 - **Pull** (`GET /v1/sync/changes?since=R&limit=N`): returns the latest state of every item whose revision is greater than `R`, ordered by revision, and `hasMore` for paging. The client stores the last revision it received.
-- **Events** (`WS /v1/sync/events`): pushes `{ "revision": N }` when the account changes, so clients can pull right away.
+- **Events** (`WS /v1/sync/events`): pushes `{ "revision": N }` when the account changes, so clients can pull right away. Events are hints kept in the memory of one hub instance (`RevisionFeed`); a client that misses one still converges on its next pull.
+
+### Limits
+
+- Registration is limited to 10 requests per hour and the authenticated API to 600 requests per minute, both per client address. Set `HUB_TRUST_FORWARDED_HEADERS=true` only when the hub is reachable solely through a reverse proxy that sets `X-Forwarded-For`; otherwise every client behind the proxy shares one bucket, or clients can spoof their address.
+- Request bodies are capped at 8 KiB for registration and 12 MiB for sync; larger requests get `413`.
+- A request with an `X-Wavedot-Protocol` newer than the server's is refused with `400`.
 
 Third-party credentials (Yandex, Spotify and others) are never sent to the hub. Only `MediaId` references and display metadata are synced.
 
@@ -30,6 +37,10 @@ The settings live in `hub.yaml`. Each one can be overridden with an environment 
 | `HUB_DATABASE_URL` | `jdbc:postgresql://localhost:5432/wavedot_hub` |
 | `HUB_DATABASE_USER`, `HUB_DATABASE_PASSWORD` | `wavedot`, `wavedot` |
 | `HUB_DATABASE_POOL` | `10` |
+| `HUB_REGISTRATION_MODE`, `HUB_REGISTRATION_TOKEN` | `TOKEN`, empty (registration refused until a token is set) |
+| `HUB_MAX_BATCH`, `HUB_MAX_PAYLOAD_BYTES` | `500`, `16384` |
+| `HUB_MAX_ITEMS_PER_ACCOUNT`, `HUB_MAX_CLOCK_SKEW` | `50000`, `24h` |
+| `HUB_TRUST_FORWARDED_HEADERS` | `false` |
 
 ## Updates (`server/updates`)
 
@@ -64,7 +75,7 @@ curl -H "Authorization: Bearer $UPDATES_ADMIN_TOKEN" \
 
 ## Shared behavior
 
-- Errors are returned as `application/json` `ProblemDetails` objects (`type`, `title`, `status`, `detail`).
+- Errors are returned as `application/json` `ProblemDetails` objects (`type`, `title`, `status`, `detail`). Malformed requests get a generic detail; internal messages are logged, not returned.
 - `X-Request-Id` is accepted or generated, echoed back, and included in logs.
 - `/health/live` and `/health/ready` are available; readiness checks the database.
 - Flyway migrations run on startup.

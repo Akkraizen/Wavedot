@@ -18,4 +18,7 @@ object ProblemTypes {
     const val VALIDATION: String = "urn:wavedot:problem:validation"
     const val CONFLICT: String = "urn:wavedot:problem:conflict"
     const val INTERNAL: String = "urn:wavedot:problem:internal"
+    const val RATE_LIMITED: String = "urn:wavedot:problem:rate-limited"
+    const val PAYLOAD_TOO_LARGE: String = "urn:wavedot:problem:payload-too-large"
+    const val UNSUPPORTED_PROTOCOL: String = "urn:wavedot:problem:unsupported-protocol"
 }

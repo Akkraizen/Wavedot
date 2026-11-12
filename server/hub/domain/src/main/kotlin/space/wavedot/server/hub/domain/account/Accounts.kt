@@ -31,7 +31,11 @@ data class DeviceSession(
 interface AccountRepository {
     suspend fun create(account: Account)
 
-    suspend fun nextRevision(id: AccountId): Long
+    suspend fun lockRevision(id: AccountId): Long
+
+    suspend fun saveRevision(id: AccountId, revision: Long)
+
+    suspend fun delete(id: AccountId)
 }
 
 interface DeviceRepository {
@@ -39,7 +43,11 @@ interface DeviceRepository {
 
     suspend fun findByTokenHash(tokenHash: String): Device?
 
+    suspend fun listByAccount(accountId: AccountId): List<Device>
+
     suspend fun touch(id: DeviceId, at: Instant)
+
+    suspend fun delete(id: DeviceId)
 }
 
 interface TokenService {

@@ -8,6 +8,7 @@ import com.sksamuel.hoplite.addResourceSource
 data class ServerConfig(
     val host: String = "0.0.0.0",
     val port: Int = 8080,
+    val trustForwardedHeaders: Boolean = false,
 )
 
 data class DatabaseConfig(

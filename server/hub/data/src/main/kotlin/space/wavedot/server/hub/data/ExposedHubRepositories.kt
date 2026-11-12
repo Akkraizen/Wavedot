@@ -6,6 +6,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -33,12 +34,21 @@ class ExposedAccountRepository(private val database: Database) : AccountReposito
         Unit
     }
 
-    override suspend fun nextRevision(id: AccountId): Long = database.dbQuery {
-        val current = AccountsTable.selectAll().where { AccountsTable.id eq id.value }.forUpdate()
+    override suspend fun lockRevision(id: AccountId): Long = database.dbQuery {
+        AccountsTable.selectAll().where { AccountsTable.id eq id.value }.forUpdate()
             .singleOrNull()?.get(AccountsTable.revision) ?: throw AppError.NotFound("Account")
-        val next = current + 1
-        AccountsTable.update({ AccountsTable.id eq id.value }) { it[revision] = next }
-        next
+    }
+
+    override suspend fun saveRevision(id: AccountId, revision: Long) = database.dbQuery {
+        AccountsTable.update({ AccountsTable.id eq id.value }) { it[AccountsTable.revision] = revision }
+        Unit
+    }
+
+    override suspend fun delete(id: AccountId) = database.dbQuery {
+        LibraryItemsTable.deleteWhere { accountId eq id.value }
+        DevicesTable.deleteWhere { accountId eq id.value }
+        AccountsTable.deleteWhere { AccountsTable.id eq id.value }
+        Unit
     }
 }
 
@@ -58,6 +68,15 @@ class ExposedDeviceRepository(private val database: Database) : DeviceRepository
 
     override suspend fun findByTokenHash(tokenHash: String): Device? = database.dbQuery {
         DevicesTable.selectAll().where { DevicesTable.tokenHash eq tokenHash }.singleOrNull()?.toDevice()
+    }
+
+    override suspend fun listByAccount(accountId: AccountId): List<Device> = database.dbQuery {
+        DevicesTable.selectAll().where { DevicesTable.accountId eq accountId.value }.map { it.toDevice() }
+    }
+
+    override suspend fun delete(id: DeviceId) = database.dbQuery {
+        DevicesTable.deleteWhere { DevicesTable.id eq id.value }
+        Unit
     }
 
     override suspend fun touch(id: DeviceId, at: Instant) = database.dbQuery {
@@ -108,6 +127,10 @@ class ExposedLibraryRepository(private val database: Database) : LibraryReposito
             .orderBy(LibraryItemsTable.revision to SortOrder.ASC)
             .limit(limit)
             .map { it.toStored() }
+    }
+
+    override suspend fun count(accountId: AccountId): Long = database.dbQuery {
+        LibraryItemsTable.selectAll().where { LibraryItemsTable.accountId eq accountId.value }.count()
     }
 
     private fun ResultRow.toStored() = StoredChange(

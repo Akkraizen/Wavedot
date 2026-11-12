@@ -2,16 +2,17 @@ services:
   postgres:
     image: postgres:18
     environment:
-      POSTGRES_USER: wavedot
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wavedot}
-      POSTGRES_DB: wavedot_hub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      HUB_DATABASE_PASSWORD: ${HUB_DATABASE_PASSWORD:?set HUB_DATABASE_PASSWORD in deploy/.env}
+      UPDATES_DATABASE_PASSWORD: ${UPDATES_DATABASE_PASSWORD:?set UPDATES_DATABASE_PASSWORD in deploy/.env}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - postgres-data:/var/lib/postgresql
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wavedot"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       retries: 10
+    restart: unless-stopped
 
   hub:
     build:
@@ -21,13 +22,21 @@ services:
         SERVICE: hub
     environment:
       HUB_DATABASE_URL: jdbc:postgresql://postgres:5432/wavedot_hub
-      HUB_DATABASE_USER: wavedot
-      HUB_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-wavedot}
+      HUB_DATABASE_USER: wavedot_hub
+      HUB_DATABASE_PASSWORD: ${HUB_DATABASE_PASSWORD:?set HUB_DATABASE_PASSWORD in deploy/.env}
+      HUB_REGISTRATION_MODE: ${HUB_REGISTRATION_MODE:-TOKEN}
+      HUB_REGISTRATION_TOKEN: ${HUB_REGISTRATION_TOKEN:?set HUB_REGISTRATION_TOKEN in deploy/.env}
+      HUB_TRUST_FORWARDED_HEADERS: ${TRUST_FORWARDED_HEADERS:-false}
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8081'"]
+      interval: 10s
+      retries: 6
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
 
   updates:
     build:
@@ -37,18 +46,45 @@ services:
         SERVICE: updates
     environment:
       UPDATES_DATABASE_URL: jdbc:postgresql://postgres:5432/wavedot_updates
-      UPDATES_DATABASE_USER: wavedot
-      UPDATES_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-wavedot}
+      UPDATES_DATABASE_USER: wavedot_updates
+      UPDATES_DATABASE_PASSWORD: ${UPDATES_DATABASE_PASSWORD:?set UPDATES_DATABASE_PASSWORD in deploy/.env}
       UPDATES_STORAGE_ROOT: /var/lib/wavedot/artifacts
       UPDATES_ADMIN_TOKEN: ${UPDATES_ADMIN_TOKEN:?set UPDATES_ADMIN_TOKEN in deploy/.env}
+      UPDATES_SIGNING_PUBLIC_KEY: ${UPDATES_SIGNING_PUBLIC_KEY:-}
+      UPDATES_TRUST_FORWARDED_HEADERS: ${TRUST_FORWARDED_HEADERS:-false}
     volumes:
       - artifacts:/var/lib/wavedot/artifacts
     ports:
-      - "8082:8082"
+      - "127.0.0.1:8082:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8082'"]
+      interval: 10s
+      retries: 6
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
+
+  proxy:
+    image: caddy:2
+    profiles: ["proxy"]
+    environment:
+      HUB_DOMAIN: ${HUB_DOMAIN:-}
+      UPDATES_DOMAIN: ${UPDATES_DOMAIN:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - hub
+      - updates
+    restart: unless-stopped
 
 volumes:
   postgres-data:
   artifacts:
+  caddy-data:
+  caddy-config:

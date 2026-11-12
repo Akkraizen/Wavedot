@@ -39,6 +39,7 @@ internal object ArtifactsTable : Table("artifacts") {
     val size = long("size")
     val sha256 = varchar("sha256", 64)
     val storageKey = varchar("storage_key", 256)
+    val signature = varchar("signature", 256).nullable()
     override val primaryKey = PrimaryKey(releaseId, platform, arch)
 }
 
@@ -62,6 +63,7 @@ class ExposedReleaseRepository(private val database: Database) : ReleaseReposito
             this[ArtifactsTable.size] = artifact.size
             this[ArtifactsTable.sha256] = artifact.sha256
             this[ArtifactsTable.storageKey] = artifact.storageKey
+            this[ArtifactsTable.signature] = artifact.signature
         }
         Unit
     }
@@ -110,5 +112,6 @@ class ExposedReleaseRepository(private val database: Database) : ReleaseReposito
         size = this[ArtifactsTable.size],
         sha256 = this[ArtifactsTable.sha256],
         storageKey = this[ArtifactsTable.storageKey],
+        signature = this[ArtifactsTable.signature],
     )
 }

@@ -1,6 +1,7 @@
 server:
   host: ${UPDATES_HOST:-0.0.0.0}
   port: ${UPDATES_PORT:-8082}
+  trustForwardedHeaders: ${UPDATES_TRUST_FORWARDED_HEADERS:-false}
 database:
   url: ${UPDATES_DATABASE_URL:-jdbc:postgresql://localhost:5432/wavedot_updates}
   user: ${UPDATES_DATABASE_USER:-wavedot}
@@ -10,3 +11,5 @@ storage:
   root: ${UPDATES_STORAGE_ROOT:-./data/artifacts}
 admin:
   token: ${UPDATES_ADMIN_TOKEN:-}
+signing:
+  publicKey: ${UPDATES_SIGNING_PUBLIC_KEY:-}

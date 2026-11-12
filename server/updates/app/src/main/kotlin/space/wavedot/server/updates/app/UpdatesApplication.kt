@@ -17,12 +17,15 @@ import space.wavedot.server.ktor.installServiceDefaults
 import space.wavedot.server.persistence.createDataSource
 import space.wavedot.server.persistence.isReachable
 import space.wavedot.server.persistence.migrate
+import space.wavedot.server.updates.api.EcdsaArtifactSignatureVerifier
 import space.wavedot.server.updates.api.UpdatesUseCases
 import space.wavedot.server.updates.api.updatesApi
 import space.wavedot.server.updates.data.ExposedReleaseRepository
 import space.wavedot.server.updates.data.FileSystemArtifactStorage
 import space.wavedot.server.updates.domain.ArtifactStorage
+import space.wavedot.server.updates.domain.GetArtifact
 import space.wavedot.server.updates.domain.PublishRelease
+import space.wavedot.server.updates.domain.ReleaseCatalog
 import space.wavedot.server.updates.domain.ReleaseRepository
 import space.wavedot.server.updates.domain.ResolveLatest
 import space.wavedot.server.updates.domain.YankRelease
@@ -33,11 +36,14 @@ data class StorageConfig(val root: String)
 
 data class AdminConfig(val token: String = "")
 
+data class SigningConfig(val publicKey: String = "")
+
 data class UpdatesConfig(
     val server: ServerConfig,
     val database: DatabaseConfig,
     val storage: StorageConfig,
     val admin: AdminConfig,
+    val signing: SigningConfig = SigningConfig(),
 )
 
 fun updatesModule(config: UpdatesConfig, database: Database) = module {
@@ -47,13 +53,15 @@ fun updatesModule(config: UpdatesConfig, database: Database) = module {
     single<ReleaseRepository> { ExposedReleaseRepository(get()) }
     single { FileSystemArtifactStorage(Path.of(config.storage.root)) }
     single<ArtifactStorage> { get<FileSystemArtifactStorage>() }
+    single { ReleaseCatalog(get(), get()) }
     single { ResolveLatest(get()) }
-    single { PublishRelease(get(), get(), get(), get()) }
-    single { YankRelease(get()) }
     single {
-        val storage = get<FileSystemArtifactStorage>()
-        UpdatesUseCases(get(), get(), get(), get(), { storage.resolve(it).toFile() }, config.admin.token)
+        val verifier = config.signing.publicKey.takeIf { it.isNotBlank() }?.let(::EcdsaArtifactSignatureVerifier)
+        PublishRelease(get(), get(), get(), get(), get(), verifier)
     }
+    single { YankRelease(get(), get()) }
+    single { GetArtifact(get(), get()) }
+    single { UpdatesUseCases(get(), get(), get(), get(), config.admin.token) }
 }
 
 fun main() {
@@ -63,7 +71,7 @@ fun main() {
     val database = Database.connect(dataSource)
     embeddedServer(Netty, port = config.server.port, host = config.server.host) {
         install(Koin) { modules(updatesModule(config, database)) }
-        installServiceDefaults("wavedot-updates", ReadinessCheck { dataSource.isReachable() })
+        installServiceDefaults("wavedot-updates", ReadinessCheck { dataSource.isReachable() }, config.server.trustForwardedHeaders)
         updatesApi(get())
     }.start(wait = true)
 }

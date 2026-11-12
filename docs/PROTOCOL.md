@@ -6,7 +6,7 @@ The client and the services exchange JSON defined in `shared/protocol-*` (Kotlin
 |---|---|
 | `protocol-core` | `ProtocolVersion` (header `X-Wavedot-Protocol`), `ProblemDetails`, `ProblemTypes`, `PageDto`, `PlatformDto`, `ArchDto`, `ProtocolJson`, `wireName()` / `fromWireName()` for enum wire names |
 | `protocol-hub` | `HubRoutes`, account and device DTOs, `ChangeDto`, push/pull DTOs, `RevisionEvent`, `SyncCollections`, `FavoritePayloadDto` |
-| `protocol-updates` | `UpdatesRoutes`, `ReleaseDto`, `ArtifactDto`, `ChannelDto`, `PublishReleaseRequest` |
+| `protocol-updates` | `UpdatesRoutes`, `ReleaseDto`, `ArtifactDto`, `ChannelDto`, `PublishReleaseRequest`, `UpdateManifest` (the signed artifact manifest) |
 
 ## Rules
 

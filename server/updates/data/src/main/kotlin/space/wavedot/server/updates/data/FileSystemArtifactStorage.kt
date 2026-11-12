@@ -2,6 +2,7 @@ package space.wavedot.server.updates.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import space.wavedot.server.updates.domain.ArtifactLocation
 import space.wavedot.server.updates.domain.ArtifactStorage
 import space.wavedot.server.updates.domain.StoredBlob
 import java.io.InputStream
@@ -14,7 +15,11 @@ import java.security.MessageDigest
 class FileSystemArtifactStorage(root: Path) : ArtifactStorage {
     private val root: Path = root.toAbsolutePath().normalize().also { Files.createDirectories(it) }
 
-    fun resolve(key: String): Path {
+    override suspend fun locate(key: String): ArtifactLocation? = withContext(Dispatchers.IO) {
+        resolve(key).takeIf { Files.isRegularFile(it) }?.let(ArtifactLocation::LocalFile)
+    }
+
+    private fun resolve(key: String): Path {
         val path = root.resolve(key).normalize()
         require(path.startsWith(root)) { "Storage key escapes the root: $key" }
         return path
@@ -22,6 +27,7 @@ class FileSystemArtifactStorage(root: Path) : ArtifactStorage {
 
     override suspend fun store(key: String, content: InputStream): StoredBlob = withContext(Dispatchers.IO) {
         val target = resolve(key)
+        require(target != root && target.parent != null) { "Storage key must name a file: $key" }
         Files.createDirectories(target.parent)
         val temp = Files.createTempFile(target.parent, ".upload", ".tmp")
         val digest = MessageDigest.getInstance("SHA-256")

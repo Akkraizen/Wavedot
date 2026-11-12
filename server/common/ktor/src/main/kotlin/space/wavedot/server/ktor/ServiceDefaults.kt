@@ -66,13 +66,16 @@ fun Application.installServiceDefaults(
         exception<PayloadTooLargeException> { call, _ ->
             call.respondProblem(HttpStatusCode.PayloadTooLarge, ProblemTypes.PAYLOAD_TOO_LARGE, "The request body is too large")
         }
-        exception<SerializationException> { call, _ ->
+        exception<SerializationException> { call, error ->
+            log.info("Malformed request on ${call.request.path()}: ${error.message}")
             call.respondProblem(HttpStatusCode.BadRequest, ProblemTypes.VALIDATION, MALFORMED_REQUEST)
         }
-        exception<BadRequestException> { call, _ ->
+        exception<BadRequestException> { call, error ->
+            log.info("Malformed request on ${call.request.path()}: ${error.message}")
             call.respondProblem(HttpStatusCode.BadRequest, ProblemTypes.VALIDATION, MALFORMED_REQUEST)
         }
-        exception<IllegalArgumentException> { call, _ ->
+        exception<IllegalArgumentException> { call, error ->
+            log.info("Malformed request on ${call.request.path()}: ${error.message}")
             call.respondProblem(HttpStatusCode.BadRequest, ProblemTypes.VALIDATION, MALFORMED_REQUEST)
         }
         exception<Throwable> { call, error ->

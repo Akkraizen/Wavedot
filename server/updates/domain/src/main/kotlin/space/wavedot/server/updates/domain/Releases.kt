@@ -1,6 +1,7 @@
 package space.wavedot.server.updates.domain
 
 import java.io.InputStream
+import java.nio.file.Path
 import java.time.Instant
 
 enum class Channel(val stability: Int) {
@@ -23,6 +24,7 @@ data class Artifact(
     val size: Long,
     val sha256: String,
     val storageKey: String,
+    val signature: String? = null,
 )
 
 data class Release(
@@ -46,6 +48,12 @@ data class StoredBlob(
     val sha256: String,
 )
 
+sealed interface ArtifactLocation {
+    data class LocalFile(val path: Path) : ArtifactLocation
+
+    data class Remote(val url: String) : ArtifactLocation
+}
+
 interface ReleaseRepository {
     suspend fun save(release: Release)
 
@@ -61,5 +69,11 @@ interface ReleaseRepository {
 interface ArtifactStorage {
     suspend fun store(key: String, content: InputStream): StoredBlob
 
+    suspend fun locate(key: String): ArtifactLocation?
+
     suspend fun delete(key: String)
+}
+
+fun interface ArtifactSignatureVerifier {
+    fun isValid(version: SemVer, artifact: Artifact, signature: String): Boolean
 }

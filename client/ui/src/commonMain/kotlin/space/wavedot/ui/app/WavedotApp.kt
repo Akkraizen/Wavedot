@@ -116,10 +116,11 @@ private class AppChrome(
 fun WavedotApp(
     httpClient: HttpClient,
     imageCacheDirectory: String?,
+    artworkResolver: ArtworkUrlResolver,
     navigationLayout: NavigationLayout = NavigationLayout.BOTTOM_BAR,
     titleBar: @Composable () -> Unit = {},
 ) {
-    InstallImageLoader(httpClient, imageCacheDirectory)
+    InstallImageLoader(httpClient, imageCacheDirectory, artworkResolver)
     val appearance = koinViewModel<AppearanceViewModel>()
     val accentId by appearance.accentId.collectAsState()
     val extensions = koinViewModel<ExtensionsViewModel>()

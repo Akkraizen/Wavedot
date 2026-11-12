@@ -11,33 +11,46 @@ data class HubConnection(
     val deviceId: String,
 )
 
-class HubSettings(private val store: KeyValueStore) {
+class HubSettings(
+    private val settings: KeyValueStore,
+    private val secrets: KeyValueStore,
+) {
     suspend fun connection(): HubConnection? {
-        val url = store.get(KEY_URL) ?: return null
-        val token = store.get(KEY_TOKEN) ?: return null
+        val url = settings.get(KEY_URL) ?: return null
+        val token = token() ?: return null
         return HubConnection(
             baseUrl = url,
             deviceToken = token,
-            accountId = store.get(KEY_ACCOUNT).orEmpty(),
-            deviceId = store.get(KEY_DEVICE).orEmpty(),
+            accountId = settings.get(KEY_ACCOUNT).orEmpty(),
+            deviceId = settings.get(KEY_DEVICE).orEmpty(),
         )
     }
 
     fun observeConnected(): Flow<Boolean> =
-        combine(store.observe(KEY_URL), store.observe(KEY_TOKEN)) { url, token ->
-            url != null && token != null
+        combine(settings.observe(KEY_URL), secrets.observe(KEY_TOKEN), settings.observe(KEY_TOKEN)) { url, token, legacy ->
+            url != null && (token != null || legacy != null)
         }
 
     suspend fun save(connection: HubConnection) {
-        store.set(KEY_URL, connection.baseUrl.trimEnd('/'))
-        store.set(KEY_TOKEN, connection.deviceToken)
-        store.set(KEY_ACCOUNT, connection.accountId)
-        store.set(KEY_DEVICE, connection.deviceId)
+        secrets.set(KEY_TOKEN, connection.deviceToken)
+        settings.delete(KEY_TOKEN)
+        settings.set(KEY_ACCOUNT, connection.accountId)
+        settings.set(KEY_DEVICE, connection.deviceId)
+        settings.set(KEY_URL, connection.baseUrl.trimEnd('/'))
     }
 
     suspend fun clear() {
-        listOf(KEY_URL, KEY_TOKEN, KEY_ACCOUNT, KEY_DEVICE)
-            .forEach { store.delete(it) }
+        settings.delete(KEY_URL)
+        secrets.delete(KEY_TOKEN)
+        listOf(KEY_TOKEN, KEY_ACCOUNT, KEY_DEVICE).forEach { settings.delete(it) }
+    }
+
+    private suspend fun token(): String? {
+        secrets.get(KEY_TOKEN)?.let { return it }
+        val legacy = settings.get(KEY_TOKEN) ?: return null
+        secrets.set(KEY_TOKEN, legacy)
+        settings.delete(KEY_TOKEN)
+        return legacy
     }
 
     private companion object {

@@ -45,6 +45,7 @@ interface MediaSource {
     val search: Search?          // PagedQuery<SearchQuery, T>
     val streaming: Streaming?    // resolve(MediaId, AudioQuality) -> StreamSource
     val library: RemoteLibrary?  // liked tracks, like/unlike
+    val artwork: ArtworkResolver? // reference key -> image URL
 }
 ```
 
@@ -54,6 +55,8 @@ interface MediaSource {
   - `LocalFile`: a path or `content://` URI.
   - `Remote`: a URL plus headers.
   - `Custom`: a seekable `ByteStreamOpener`, used for decrypted and generated streams.
+
+Artwork that needs credentials or signing never stores a ready-made URL. The source returns `ArtworkReference.of(sourceId, key)` (`wavedot-artwork:<source>:<key>`) and implements the optional `artwork: ArtworkResolver` capability; `ResolveArtwork` turns the reference into a URL at load time and the image loader caches it under the reference. References are safe to persist and to sync, the resolved URLs are not.
 
 Every source implementation must pass `MediaSourceContractTest`.
 
@@ -73,11 +76,11 @@ Every source implementation must pass `MediaSourceContractTest`.
 | Module | Role |
 |---|---|
 | `infra/database` | SQLDelight schema: favorites, playlists, the lyrics cache, the pending change log for sync, and the sync revision. Implements `FavoritesRepository`, `PlaylistRepository`, `LyricsCache` and `SyncStateStore`. Schema changes ship as numbered `.sqm` migrations |
-| `infra/storage` | `FileKeyValueStore`, used for settings and plugin secrets |
+| `infra/storage` | `FileKeyValueStore` for settings; secrets (plugin credentials, the hub device token) go through `EncryptedKeyValueStore`, sealed by the Android Keystore (`AndroidKeystoreCipher`) or Windows DPAPI (`WindowsDataProtectionCipher`). On Linux and macOS the secrets file is plain but readable by its owner only |
 | `infra/network` | `createHttpClient` and `defaultHttpClient` (Ktor with OkHttp) |
 | `infra/stream-proxy` | `LoopbackStreamProxy` |
 | `infra/hub-client` | `HubClient`, which implements `SyncGateway` over `protocol-hub`, and `HubSettings` |
-| `infra/updater` | `HttpUpdateChecker`, which implements `UpdateChecker`, and `UpdateDownloader` (SHA-256 verified) |
+| `infra/updater` | `HttpUpdateChecker`, which implements `UpdateChecker` and accepts only releases whose manifest is signed by a key compiled into the build (`EcdsaUpdateSignatureVerifier`), and `UpdateDownloader` (https only, exact size, SHA-256) |
 | `sources/local` | `LocalMediaSource`, with `FileSystemTrackScanner` (desktop, jaudiotagger) and `MediaStoreTrackScanner` (Android) |
 | `plugins/yandex-music` | The built-in Yandex Music plugin. See [PLUGINS.md](PLUGINS.md) |
 | `plugins/subsonic` | Subsonic and OpenSubsonic servers (Navidrome, Gonic, Airsonic, Ampache) |
@@ -102,6 +105,7 @@ The client's interface is split in two layers:
 - Presentation modules depend only on `core/domain` and on ports they declare themselves. For example, `SettingsBackend` lets the settings view model stay free of plugin and hub internals.
 - Settings is split into sections (Appearance, Plugins, Library, Sync, About). Wide windows show the section list and the open section side by side; narrow screens show the list first and open a section on its own page.
 - The playlist picker is `PlaylistPickerViewModel` in `presentation/library` and `PlaylistPickerSheet` in `ui.library`. `WavedotApp` hosts a single picker above all screens and passes an `onAddToPlaylist` callback to the library, search and player screens, so every track list and the player open the same "Save to" sheet.
+- `app/shell` generates `BuildInfo` (version, update server URL and trusted update keys) from the Gradle project version and the `wavedot.updatesUrl` and `wavedot.updateSigningKey` properties, so the version is declared once in the root build script.
 - `app/shell` is the composition root shared by both apps. It contains the Koin modules (`wavedotModules(platformModule)`), `bootstrap()` and the adapters that implement presentation ports.
 - `app/android` and `app/desktop` provide the platform module (the engine, database driver, storage locations and scanner) and host `WavedotApp`.
 
@@ -138,6 +142,10 @@ The shared server modules are:
 - `common/testing`: H2 test database and a mutable clock.
 
 See [SERVER.md](SERVER.md) for each service's behavior.
+
+## Enforcing the layers
+
+The `checkArchitecture` task reads the production dependencies every module declares and fails when one crosses a boundary described above, for example `ui` reaching `infra/*`, a plugin depending on anything but `core/plugin-api`, or a server `domain` module depending on Ktor-facing code. `app/shell` exports only what the platform modules need; plugins and the hub client are its implementation details.
 
 ## Testing strategy
 

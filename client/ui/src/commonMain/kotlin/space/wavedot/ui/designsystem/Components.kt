@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import okio.Path.Companion.toPath
 import space.wavedot.core.model.Album
+import space.wavedot.core.model.ArtworkReference
 import space.wavedot.core.model.Artist
 import space.wavedot.core.model.Track
 
@@ -109,7 +110,7 @@ fun Artwork(
 }
 
 fun artworkModel(url: String): Any =
-    if (url.contains("://")) url else url.replace('\\', '/').toPath()
+    if (url.contains("://") || ArtworkReference.matches(url)) url else url.replace('\\', '/').toPath()
 
 @Composable
 fun AlbumCard(

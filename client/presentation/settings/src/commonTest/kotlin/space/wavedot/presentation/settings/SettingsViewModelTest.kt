@@ -28,6 +28,7 @@ class SettingsViewModelTest {
         supportsFolders: Boolean = true,
     ) : SettingsBackend {
         val saved = mutableListOf<Triple<String, String, String>>()
+        val hubRequests = mutableListOf<Pair<String, String>>()
         val folders = MutableStateFlow(listOf("/music"))
         override val hubConnected: Flow<Boolean> = MutableStateFlow(false)
         override val musicFolders: Flow<List<String>>? = folders.takeIf { supportsFolders }
@@ -38,8 +39,16 @@ class SettingsViewModelTest {
             saved += Triple(pluginId, key, value)
         }
 
-        override suspend fun connectHub(url: String) = error("unreachable")
+        override suspend fun connectHub(url: String, registrationToken: String) {
+            hubRequests += url to registrationToken
+        }
+
         override suspend fun disconnectHub() = Unit
+
+        override suspend fun deleteHubAccount() {
+            hubRequests += "delete" to ""
+        }
+
         override suspend fun syncNow() = SyncReport(imported = 2, pushed = 1, pulled = 3)
         override suspend fun checkForUpdates(): AvailableUpdate? = null
         override suspend fun setMusicFolders(folders: List<String>) {
@@ -71,8 +80,12 @@ class SettingsViewModelTest {
         viewModel.onIntent(SettingsIntent.SyncNow)
         assertEquals("Imported 2, sent 1, received 3", viewModel.state.first { it.message?.startsWith("Imported") == true }.message)
 
-        viewModel.onIntent(SettingsIntent.ConnectHub("https://hub"))
-        assertEquals("unreachable", viewModel.state.first { it.message == "unreachable" }.message)
+        viewModel.onIntent(SettingsIntent.ConnectHub(" https://hub ", " invite "))
+        assertEquals("Connected to hub", viewModel.state.first { it.message == "Connected to hub" }.message)
+        assertEquals("https://hub" to "invite", backend.hubRequests.single())
+
+        viewModel.onIntent(SettingsIntent.DeleteHubAccount)
+        assertEquals("delete" to "", backend.hubRequests.last())
 
         viewModel.onIntent(SettingsIntent.SelectAccent("teal"))
         assertEquals("teal", viewModel.state.first { it.accentId == "teal" }.accentId)
@@ -106,13 +119,22 @@ class SettingsViewModelTest {
 
     @Test
     fun groupsPluginsIntoSourcesAndLyrics() = runTest(dispatcher) {
-        fun plugin(id: String, group: PluginGroup) = PluginInfo(id, id, "", "Active", true, emptyList(), group)
+        fun plugin(id: String, group: PluginGroup) = PluginInfo(id, id, "", PluginState.ACTIVE, emptyList(), group)
         val plugins = listOf(plugin("yandex-music", PluginGroup.SOURCES), plugin("lrclib", PluginGroup.LYRICS), plugin("audius", PluginGroup.SOURCES))
         val viewModel = SettingsViewModel(FakeBackend(plugins = MutableStateFlow(plugins)))
         backgroundScope.launch { viewModel.state.collect {} }
         val state = viewModel.state.first { it.plugins.isNotEmpty() }
         assertEquals(listOf("yandex-music", "audius"), state.sourcePlugins.map { it.id })
         assertEquals(listOf("lrclib"), state.lyricsPlugins.map { it.id })
+    }
+
+    @Test
+    fun describesPluginStates() {
+        fun plugin(state: PluginState, failure: String? = null) = PluginInfo("p", "P", "", state, emptyList(), failure = failure)
+        assertEquals("Active" to true, plugin(PluginState.ACTIVE).let { it.status to it.active })
+        assertEquals("Needs setup" to false, plugin(PluginState.NEEDS_SETUP).let { it.status to it.active })
+        assertEquals("Disabled", plugin(PluginState.DISABLED).status)
+        assertEquals("Error: boom", plugin(PluginState.FAILED, "boom").status)
     }
 
     @Test

@@ -16,15 +16,22 @@ class InMemoryHub : AccountRepository, DeviceRepository, LibraryRepository, Toke
     val devices = mutableMapOf<DeviceId, Device>()
     private val items = mutableMapOf<Triple<AccountId, String, String>, StoredChange>()
     private var tokenCounter = 0
+    var touches = 0
 
     override suspend fun create(account: Account) {
         accounts[account.id] = account to 0L
     }
 
-    override suspend fun nextRevision(id: AccountId): Long {
-        val (account, revision) = accounts.getValue(id)
-        accounts[id] = account to revision + 1
-        return revision + 1
+    override suspend fun lockRevision(id: AccountId): Long = accounts.getValue(id).second
+
+    override suspend fun saveRevision(id: AccountId, revision: Long) {
+        accounts[id] = accounts.getValue(id).first to revision
+    }
+
+    override suspend fun delete(id: AccountId) {
+        accounts.remove(id)
+        devices.values.removeAll { it.accountId == id }
+        items.keys.removeAll { it.first == id }
     }
 
     override suspend fun create(device: Device) {
@@ -33,7 +40,16 @@ class InMemoryHub : AccountRepository, DeviceRepository, LibraryRepository, Toke
 
     override suspend fun findByTokenHash(tokenHash: String): Device? = devices.values.firstOrNull { it.tokenHash == tokenHash }
 
+    override suspend fun listByAccount(accountId: AccountId): List<Device> = devices.values.filter { it.accountId == accountId }
+
+    override suspend fun delete(id: DeviceId) {
+        devices.remove(id)
+    }
+
+    override suspend fun count(accountId: AccountId): Long = items.keys.count { it.first == accountId }.toLong()
+
     override suspend fun touch(id: DeviceId, at: Instant) {
+        touches++
         devices[id] = devices.getValue(id).copy(lastSeenAt = at)
     }
 

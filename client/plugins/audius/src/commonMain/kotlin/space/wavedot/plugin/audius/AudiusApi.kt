@@ -7,6 +7,7 @@ import io.ktor.client.request.parameter
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.encodeURLPathPart
 import io.ktor.http.isSuccess
 import kotlinx.serialization.json.Json
 import space.wavedot.core.common.WavedotError
@@ -28,14 +29,14 @@ internal class AudiusApi(
     suspend fun trending(limit: Int): List<AuTrack> =
         get<List<AuTrack>>("/tracks/trending") { parameter("limit", limit) }.orEmpty().take(limit)
 
-    suspend fun track(id: String): AuTrack? = get("/tracks/$id")
+    suspend fun track(id: String): AuTrack? = get("/tracks/${id.encodeURLPathPart()}")
 
-    suspend fun playlistTracks(id: String): List<AuTrack> = get("/playlists/$id/tracks") ?: emptyList()
+    suspend fun playlistTracks(id: String): List<AuTrack> = get("/playlists/${id.encodeURLPathPart()}/tracks") ?: emptyList()
 
     suspend fun userTracks(id: String, offset: Int, limit: Int): List<AuTrack> =
-        get("/users/$id/tracks") { paged(offset, limit) } ?: emptyList()
+        get("/users/${id.encodeURLPathPart()}/tracks") { paged(offset, limit) } ?: emptyList()
 
-    fun streamUrl(id: String): String = "$baseUrl/tracks/$id/stream?app_name=$APP_NAME"
+    fun streamUrl(id: String): String = "$baseUrl/tracks/${id.encodeURLPathPart()}/stream?app_name=$APP_NAME"
 
     private fun HttpRequestBuilder.paged(offset: Int, limit: Int) {
         parameter("offset", offset)

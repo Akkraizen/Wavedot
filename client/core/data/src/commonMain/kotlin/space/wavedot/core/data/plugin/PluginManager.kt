@@ -15,6 +15,7 @@ import space.wavedot.core.contract.MediaSourceRegistry
 import space.wavedot.core.contract.ui.RegisteredPluginUi
 import space.wavedot.core.contract.ui.UiExtensionRegistry
 import space.wavedot.core.model.SourceId
+import space.wavedot.plugin.api.MIN_PLUGIN_API_VERSION
 import space.wavedot.plugin.api.PLUGIN_API_VERSION
 import space.wavedot.plugin.api.PluginContext
 import space.wavedot.plugin.api.PluginManifest
@@ -55,6 +56,7 @@ class PluginManager(
 
     init {
         require(this.plugins.size == plugins.size) { "Duplicate plugin ids" }
+        this.plugins.keys.forEach { id -> require(PLUGIN_ID.matches(id)) { "Invalid plugin id: $id" } }
     }
 
     suspend fun loadAll() = plugins.keys.forEach { load(it) }
@@ -69,8 +71,8 @@ class PluginManager(
         val current = statusOf(id)
         if (current is PluginStatus.Loaded) return@withLock current
         val status = try {
-            check(plugin.manifest.apiVersion == PLUGIN_API_VERSION) {
-                "Plugin API ${plugin.manifest.apiVersion} is not supported (host: $PLUGIN_API_VERSION)"
+            check(plugin.manifest.apiVersion in MIN_PLUGIN_API_VERSION..PLUGIN_API_VERSION) {
+                "Plugin API ${plugin.manifest.apiVersion} is not supported (host: $MIN_PLUGIN_API_VERSION..$PLUGIN_API_VERSION)"
             }
             val contribution = plugin.onLoad(contextFactory.create(plugin.manifest))
             contribution.sources.forEach(registry::register)
@@ -113,5 +115,6 @@ class PluginManager(
 
     private companion object {
         const val TAG = "PluginManager"
+        val PLUGIN_ID = Regex("""^[a-z0-9][a-z0-9-]{0,63}$""")
     }
 }

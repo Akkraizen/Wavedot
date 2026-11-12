@@ -2,6 +2,7 @@ package space.wavedot.infra.playback.desktop
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
@@ -47,5 +48,15 @@ class FfmpegDecoderTest {
         FfmpegDecoder.open(file.absolutePath, maxChannels = 1).use { decoder ->
             assertEquals(1, decoder.output.channels)
         }
+    }
+
+    @Test
+    fun opensOnlyProtocolsAllowedForTheInputKind() {
+        val file = TestAudio.sineWav(1.0)
+        assertFailsWith<FfmpegException> { FfmpegDecoder.open(file.absolutePath, input = FfmpegInput.NETWORK) }
+        assertFailsWith<FfmpegException> { FfmpegDecoder.open("file:${file.absolutePath}", input = FfmpegInput.NETWORK) }
+        assertFailsWith<FfmpegException> { FfmpegDecoder.open("concat:${file.absolutePath}|${file.absolutePath}") }
+        assertFailsWith<FfmpegException> { FfmpegDecoder.open("subfile,,start,0,end,64,,:${file.absolutePath}") }
+        FfmpegDecoder.open(file.absolutePath).close()
     }
 }

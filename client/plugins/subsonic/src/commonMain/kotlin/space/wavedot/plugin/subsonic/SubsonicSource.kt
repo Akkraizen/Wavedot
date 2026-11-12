@@ -5,6 +5,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import space.wavedot.core.common.WavedotError
 import space.wavedot.core.common.WavedotException
+import space.wavedot.core.contract.ArtworkResolver
 import space.wavedot.core.contract.Catalog
 import space.wavedot.core.contract.EntityProvider
 import space.wavedot.core.contract.MediaSource
@@ -20,6 +21,7 @@ import space.wavedot.core.model.AlbumRef
 import space.wavedot.core.model.Artist
 import space.wavedot.core.model.ArtistRef
 import space.wavedot.core.model.Artwork
+import space.wavedot.core.model.ArtworkReference
 import space.wavedot.core.model.AudioQuality
 import space.wavedot.core.model.Cursor
 import space.wavedot.core.model.MediaId
@@ -34,6 +36,8 @@ internal class SubsonicSource(
     displayName: String,
 ) : MediaSource {
     override val descriptor: SourceDescriptor = SourceDescriptor(SOURCE_ID, displayName, SourceKind.STREAMING)
+
+    override val artwork: ArtworkResolver = ArtworkResolver { key -> api.coverArtUrl(key) }
 
     override val catalog: Catalog = object : Catalog {
         override val tracks: EntityProvider<Track> = object : EntityProvider<Track> {
@@ -119,7 +123,7 @@ internal class SubsonicSource(
         artists = listOfNotNull(song.artist?.let { ArtistRef(song.artistId?.let { id -> MediaId(SOURCE_ID, ARTIST_PREFIX + id) }, it) }),
         album = song.album?.let { AlbumRef(song.albumId?.let { id -> MediaId(SOURCE_ID, ALBUM_PREFIX + id) }, it) },
         duration = song.duration?.takeIf { it > 0 }?.seconds,
-        artwork = song.coverArt?.let { Artwork(api.coverArtUrl(it)) },
+        artwork = song.coverArt?.let(::cover),
     )
 
     private fun album(album: SsAlbum): Album = Album(
@@ -127,15 +131,17 @@ internal class SubsonicSource(
         title = album.displayName,
         artists = listOfNotNull(album.artist?.let { ArtistRef(album.artistId?.let { id -> MediaId(SOURCE_ID, ARTIST_PREFIX + id) }, it) }),
         year = album.year,
-        artwork = album.coverArt?.let { Artwork(api.coverArtUrl(it)) },
+        artwork = album.coverArt?.let(::cover),
         trackCount = album.songCount,
     )
 
     private fun artist(artist: SsArtist): Artist = Artist(
         id = MediaId(SOURCE_ID, ARTIST_PREFIX + artist.id),
         name = artist.name,
-        artwork = (artist.artistImageUrl?.takeIf { it.isNotBlank() } ?: artist.coverArt?.let(api::coverArtUrl))?.let(::Artwork),
+        artwork = artist.artistImageUrl?.takeIf { it.isNotBlank() }?.let(::Artwork) ?: artist.coverArt?.let(::cover),
     )
+
+    private fun cover(id: String): Artwork = Artwork(ArtworkReference.of(SOURCE_ID, id))
 
     companion object {
         val SOURCE_ID: SourceId = SourceId("subsonic")

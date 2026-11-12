@@ -25,6 +25,11 @@ interface MediaSource {
     val streaming: Streaming? get() = null
     val library: RemoteLibrary? get() = null
     val lyrics: LyricsProvider? get() = null
+    val artwork: ArtworkResolver? get() = null
+}
+
+fun interface ArtworkResolver {
+    suspend fun resolve(key: String): String?
 }
 
 interface Catalog {

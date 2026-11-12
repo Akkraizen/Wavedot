@@ -14,6 +14,7 @@ import org.koin.core.context.startKoin
 import space.wavedot.app.shell.PlatformEnvironment
 import space.wavedot.app.shell.bootstrap
 import space.wavedot.app.shell.wavedotModules
+import space.wavedot.core.domain.artwork.ResolveArtwork
 import space.wavedot.playback.api.AudioEngine
 import space.wavedot.playback.api.StreamProxy
 import space.wavedot.ui.app.NavigationLayout
@@ -27,6 +28,7 @@ import java.awt.Dimension
 fun main() {
     val koin = startKoin { modules(wavedotModules(desktopModule)) }.koin
     koin.bootstrap()
+    val resolveArtwork = koin.get<ResolveArtwork>()
     application {
         val shutdown = {
             koin.get<AudioEngine>().close()
@@ -40,12 +42,13 @@ fun main() {
             icon = rememberVectorPainter(remember { wavedotLogoVector(Color.White, Color.Black, padding = 12f) }),
             state = rememberWindowState(width = 1100.dp, height = 760.dp),
         ) {
-            window.minimumSize = Dimension(720, 480)
+            window.minimumSize = Dimension(1100, 760)
             val controller = remember(window) { WindowController(window) }
             Box(Modifier.fillMaxSize()) {
                 WavedotApp(
                     httpClient = koin.get(),
                     imageCacheDirectory = koin.get<PlatformEnvironment>().cacheDirectory,
+                    artworkResolver = { resolveArtwork(it) },
                     navigationLayout = NavigationLayout.SIDE_RAIL,
                     titleBar = { WavedotTitleBar(controller, onClose = shutdown) },
                 )

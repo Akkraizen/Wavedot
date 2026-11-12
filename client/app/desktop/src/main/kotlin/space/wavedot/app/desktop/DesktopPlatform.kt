@@ -1,7 +1,10 @@
 package space.wavedot.app.desktop
 
 import org.koin.dsl.module
+import space.wavedot.app.shell.BuildInfo
 import space.wavedot.app.shell.MusicFolders
+import space.wavedot.app.shell.jvmPlatformModule
+import space.wavedot.app.shell.loadInstallId
 import space.wavedot.app.shell.PlatformEnvironment
 import space.wavedot.app.shell.SECRETS_STORE
 import space.wavedot.app.shell.SETTINGS_STORE
@@ -12,6 +15,8 @@ import space.wavedot.infra.database.createJvmDatabase
 import space.wavedot.infra.network.HttpClientSettings
 import space.wavedot.infra.network.defaultHttpClient
 import space.wavedot.infra.playback.desktop.FfmpegAudioEngine
+import space.wavedot.infra.storage.DesktopSecretCipher
+import space.wavedot.infra.storage.EncryptedKeyValueStore
 import space.wavedot.infra.storage.FileKeyValueStore
 import space.wavedot.infra.streamproxy.LoopbackStreamProxy
 import space.wavedot.infra.updater.UpdateTarget
@@ -23,9 +28,6 @@ import space.wavedot.source.local.FileSystemTrackScanner
 import space.wavedot.source.local.LocalTrackScanner
 import java.io.File
 import java.net.InetAddress
-import java.util.UUID
-
-const val APP_VERSION = "0.1.0"
 
 object DesktopPaths {
     val dataDir: File by lazy {
@@ -51,17 +53,15 @@ private fun currentPlatform(): PlatformDto {
 private fun currentArch(): ArchDto =
     if (System.getProperty("os.arch").lowercase().let { it.contains("aarch64") || it.contains("arm64") }) ArchDto.ARM64 else ArchDto.X64
 
-private fun installId(settings: File): String {
-    val file = File(settings.parentFile, "install-id")
-    return file.takeIf { it.exists() }?.readText()?.trim()?.takeIf { it.isNotEmpty() }
-        ?: UUID.randomUUID().toString().also { file.writeText(it) }
-}
-
 val desktopModule = module {
-    single { defaultHttpClient(HttpClientSettings(userAgent = "Wavedot/$APP_VERSION")) }
+    includes(jvmPlatformModule)
+    single { defaultHttpClient(HttpClientSettings(userAgent = "Wavedot/${BuildInfo.VERSION}")) }
     single { createJvmDatabase(File(DesktopPaths.dataDir, "wavedot.db")) }
     single<KeyValueStore>(SETTINGS_STORE) { FileKeyValueStore(File(DesktopPaths.dataDir, "settings.properties")) }
-    single<KeyValueStore>(SECRETS_STORE) { FileKeyValueStore(File(DesktopPaths.dataDir, "secrets.properties")) }
+    single<KeyValueStore>(SECRETS_STORE) {
+        val file = FileKeyValueStore(File(DesktopPaths.dataDir, "secrets.properties"), ownerOnly = true)
+        DesktopSecretCipher.forCurrentSystem()?.let { EncryptedKeyValueStore(file, it) } ?: file
+    }
     single<StreamProxy> { LoopbackStreamProxy() }
     single<AudioEngine> { FfmpegAudioEngine(get()) }
     single<LocalTrackScanner> {
@@ -70,7 +70,7 @@ val desktopModule = module {
     }
     single {
         PlatformEnvironment(
-            app = AppInfo(APP_VERSION, UpdateChannel.STABLE, installId(File(DesktopPaths.dataDir, "settings.properties"))),
+            app = AppInfo(BuildInfo.VERSION, UpdateChannel.STABLE, loadInstallId(DesktopPaths.dataDir)),
             updateTarget = UpdateTarget(currentPlatform(), currentArch()),
             platform = currentPlatform(),
             deviceName = runCatching { InetAddress.getLocalHost().hostName }.getOrDefault("Desktop"),

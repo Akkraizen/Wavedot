@@ -15,11 +15,13 @@ import space.wavedot.core.contract.MediaSource
 import space.wavedot.core.contract.SearchQuery
 import space.wavedot.core.model.AudioQuality
 import space.wavedot.core.model.EntityKind
+import space.wavedot.core.model.ArtworkReference
 import space.wavedot.core.model.MediaId
 import space.wavedot.core.model.stream.StreamSource
 import space.wavedot.core.testing.MediaSourceContractTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -112,7 +114,10 @@ class SubsonicSourceTest {
         assertEquals("Kino", track.artistLine)
         assertEquals(MediaId(SubsonicSource.SOURCE_ID, "album/al1"), track.album?.id)
         assertEquals(215.seconds, track.duration)
-        val cover = Url(assertNotNull(track.artwork).url)
+        val reference = assertNotNull(track.artwork).url
+        assertEquals(ArtworkReference.of(SubsonicSource.SOURCE_ID, "al-1"), reference)
+        assertFalse("sesame" in reference || "t=" in reference)
+        val cover = Url(assertNotNull(source.artwork!!.resolve("al-1")))
         assertEquals("/rest/getCoverArt.view", cover.encodedPath)
         assertEquals("al-1", cover.parameters["id"])
         assertNull(source.catalog!!.tracks.get(MediaId(SubsonicSource.SOURCE_ID, "missing")))

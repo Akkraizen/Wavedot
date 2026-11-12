@@ -35,6 +35,10 @@ gradlePlugin {
             id = "wavedot.android.application"
             implementationClass = "AndroidApplicationConventionPlugin"
         }
+        register("architectureCheck") {
+            id = "wavedot.architecture"
+            implementationClass = "ArchitectureCheckPlugin"
+        }
         register("serverService") {
             id = "wavedot.server.service"
             implementationClass = "ServerServiceConventionPlugin"

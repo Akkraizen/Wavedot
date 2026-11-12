@@ -15,7 +15,12 @@ class InMemoryReleases : ReleaseRepository, ArtifactStorage {
 
     override suspend fun findByVersion(version: SemVer): Release? = releases.values.firstOrNull { it.version == version }
 
-    override suspend fun listActive(): List<Release> = releases.values.filter { !it.yanked }
+    var listings = 0
+
+    override suspend fun listActive(): List<Release> {
+        listings++
+        return releases.values.filter { !it.yanked }
+    }
 
     override suspend fun markYanked(id: String) {
         releases[id] = releases.getValue(id).copy(yanked = true)
@@ -27,6 +32,9 @@ class InMemoryReleases : ReleaseRepository, ArtifactStorage {
         val sha = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         return StoredBlob(bytes.size.toLong(), sha)
     }
+
+    override suspend fun locate(key: String): ArtifactLocation? =
+        if (key in blobs) ArtifactLocation.Remote("memory://$key") else null
 
     override suspend fun delete(key: String) {
         blobs.remove(key)

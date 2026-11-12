@@ -19,4 +19,22 @@ class FileSystemTrackScannerTest {
         assertEquals("audio/flac", track.mimeType)
         assertEquals(root.resolve("album/cover.jpg").absolutePath, track.track.artwork?.url)
     }
+
+    @Test
+    fun followsLinkedFoldersWithoutLoopingForever() = runTest {
+        val root = Files.createTempDirectory("music").toFile()
+        val shelf = Files.createTempDirectory("shelf").toFile()
+        shelf.resolve("linked.mp3").writeBytes(byteArrayOf(0))
+        root.resolve("a").mkdirs()
+        root.resolve("a/song.mp3").writeBytes(byteArrayOf(0))
+        val linked = runCatching {
+            Files.createSymbolicLink(root.resolve("shelf").toPath(), shelf.toPath())
+            Files.createSymbolicLink(root.resolve("a/loop").toPath(), root.toPath())
+        }.isSuccess
+        if (!linked) return@runTest
+
+        val titles = FileSystemTrackScanner { listOf(root) }.scan().map { it.track.title }.sorted()
+
+        assertEquals(listOf("linked", "song"), titles)
+    }
 }

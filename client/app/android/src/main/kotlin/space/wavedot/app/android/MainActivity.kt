@@ -9,13 +9,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.get
 import space.wavedot.app.shell.PlatformEnvironment
+import space.wavedot.core.domain.artwork.ResolveArtwork
 import space.wavedot.core.domain.library.LocalLibrary
 import space.wavedot.infra.playback.android.WavedotPlaybackService
 import space.wavedot.ui.app.WavedotApp
@@ -24,7 +25,7 @@ class MainActivity : ComponentActivity() {
     private var controllerFuture: ListenableFuture<MediaController>? = null
 
     private val permissionRequest = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
-        if (granted[audioPermission] == true) MainScope().launch { get<LocalLibrary>().rescan() }
+        if (granted[audioPermission] == true) lifecycleScope.launch { get<LocalLibrary>().rescan() }
     }
 
     private val audioPermission: String
@@ -34,7 +35,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestPermissionsIfNeeded()
-        setContent { WavedotApp(httpClient = get(), imageCacheDirectory = get<PlatformEnvironment>().cacheDirectory) }
+        val resolveArtwork = get<ResolveArtwork>()
+        setContent {
+            WavedotApp(
+                httpClient = get(),
+                imageCacheDirectory = get<PlatformEnvironment>().cacheDirectory,
+                artworkResolver = { resolveArtwork(it) },
+            )
+        }
     }
 
     override fun onStart() {

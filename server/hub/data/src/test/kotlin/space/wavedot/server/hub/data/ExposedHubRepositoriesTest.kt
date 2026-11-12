@@ -1,10 +1,16 @@
 package space.wavedot.server.hub.data
 
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import space.wavedot.server.hub.domain.account.AccountId
 import space.wavedot.server.hub.domain.account.AuthenticateDevice
 import space.wavedot.server.hub.domain.account.CreateAccount
 import space.wavedot.server.hub.domain.sync.Change
 import space.wavedot.server.hub.domain.sync.CollectionRegistry
+import space.wavedot.server.hub.domain.sync.LibraryRepository
+import space.wavedot.server.hub.domain.sync.StoredChange
 import space.wavedot.server.hub.domain.sync.PullChanges
 import space.wavedot.server.hub.domain.sync.PushChanges
 import space.wavedot.server.kernel.UuidGenerator
@@ -13,6 +19,7 @@ import space.wavedot.server.testing.MutableClock
 import space.wavedot.server.testing.TestDatabase
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -29,7 +36,7 @@ class ExposedHubRepositoriesTest {
     fun fullSyncRoundTripAgainstDatabase() = runTest {
         val registered = CreateAccount(accounts, devices, tokens, UuidGenerator, transactions, clock)("Desk", "windows")
         val session = assertNotNull(AuthenticateDevice(devices, tokens, clock)(registered.token))
-        val push = PushChanges(accounts, library, CollectionRegistry.default(), transactions, { _, _ -> })
+        val push = PushChanges(accounts, library, CollectionRegistry.default(), transactions, { _, _ -> }, clock)
 
         push(session, listOf(Change("favorites", "ym:1", false, "{}", 10), Change("favorites", "ym:2", false, "{}", 10)))
         val second = push(session, listOf(Change("favorites", "ym:1", true, null, 5), Change("favorites", "ym:2", true, null, 20)))
@@ -46,5 +53,61 @@ class ExposedHubRepositoriesTest {
         val registered = CreateAccount(accounts, devices, tokens, UuidGenerator, transactions, clock)("Phone", "android")
         assertEquals(null, devices.findByTokenHash(registered.token))
         assertNotNull(devices.findByTokenHash(tokens.hash(registered.token)))
+    }
+
+    @Test
+    fun countsItemsAndRemovesAccountsWithTheirData() = runTest {
+        val registered = CreateAccount(accounts, devices, tokens, UuidGenerator, transactions, clock)("Desk", "windows")
+        val session = assertNotNull(AuthenticateDevice(devices, tokens, clock)(registered.token))
+        val push = PushChanges(accounts, library, CollectionRegistry.default(), transactions, { _, _ -> }, clock)
+        push(session, listOf(Change("favorites", "ym:1", false, "{}", 10), Change("favorites", "ym:2", false, "{}", 10)))
+
+        assertEquals(2L, library.count(session.accountId))
+        assertEquals(listOf(session.deviceId), devices.listByAccount(session.accountId).map { it.id })
+
+        accounts.delete(session.accountId)
+
+        assertEquals(0L, library.count(session.accountId))
+        assertEquals(null, devices.findByTokenHash(tokens.hash(registered.token)))
+    }
+
+    @Test
+    fun aFailedPushLeavesNoPartialChangesBehind() = runTest {
+        val registered = CreateAccount(accounts, devices, tokens, UuidGenerator, transactions, clock)("Desk", "windows")
+        val session = assertNotNull(AuthenticateDevice(devices, tokens, clock)(registered.token))
+        val failing = object : LibraryRepository by library {
+            private var writes = 0
+            override suspend fun upsert(accountId: AccountId, stored: StoredChange) {
+                if (++writes == 2) error("storage failure")
+                library.upsert(accountId, stored)
+            }
+        }
+        val notified = mutableListOf<Long>()
+        val push = PushChanges(accounts, failing, CollectionRegistry.default(), transactions, { _, revision -> notified += revision }, clock)
+
+        assertFailsWith<IllegalStateException> {
+            push(session, listOf(Change("favorites", "ym:1", false, "{}", 10), Change("favorites", "ym:2", false, "{}", 10)))
+        }
+
+        assertEquals(0L, library.count(session.accountId))
+        assertTrue(notified.isEmpty())
+        val retried = PushChanges(accounts, library, CollectionRegistry.default(), transactions, { _, _ -> }, clock)
+        assertEquals(1L, retried(session, listOf(Change("favorites", "ym:1", false, "{}", 10))).revision)
+    }
+
+    @Test
+    fun revisionFeedDeliversPerAccountAndForgetsIdleAccounts() = runTest {
+        val feed = InMemoryRevisionFeed()
+        val mine = AccountId("a")
+        val received = mutableListOf<Long>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { feed.subscribe(mine).collect { received += it } }
+
+        feed.revisionChanged(AccountId("b"), 9)
+        feed.revisionChanged(mine, 4)
+        assertEquals(listOf(4L), received)
+        assertEquals(1, feed.activeAccounts)
+
+        job.cancelAndJoin()
+        assertEquals(0, feed.activeAccounts)
     }
 }

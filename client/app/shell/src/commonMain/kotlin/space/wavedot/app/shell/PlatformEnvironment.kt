@@ -10,7 +10,7 @@ data class PlatformEnvironment(
     val platform: PlatformDto,
     val deviceName: String,
     val supportsMusicFolders: Boolean,
-    val defaultUpdatesUrl: String? = null,
+    val defaultUpdatesUrl: String? = BuildInfo.UPDATES_URL.ifBlank { null },
     val cacheDirectory: String? = null,
 )
 

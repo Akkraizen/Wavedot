@@ -64,6 +64,7 @@ class LoopbackStreamProxy(
     }
 
     private suspend fun serve(call: ApplicationCall, includeBody: Boolean) {
+        if (!isLoopbackHost(call.request.headers[HttpHeaders.Host])) return call.respond(HttpStatusCode.Forbidden)
         val source = call.parameters["token"]?.let(entries::get)
             ?: return call.respond(HttpStatusCode.NotFound)
         val range = ByteRange.parse(call.request.headers[HttpHeaders.Range])
@@ -86,7 +87,7 @@ class LoopbackStreamProxy(
         if (range != null && end != null) {
             call.response.header(HttpHeaders.ContentRange, "bytes $start-$end/${total ?: "*"}")
         }
-        val contentType = source.mimeType?.let(ContentType::parse) ?: ContentType.Application.OctetStream
+        val contentType = source.mimeType?.let { runCatching { ContentType.parse(it) }.getOrNull() } ?: ContentType.Application.OctetStream
         if (!includeBody) {
             stream.close()
             return call.respond(object : OutgoingContent.NoContent() {
@@ -116,7 +117,13 @@ class LoopbackStreamProxy(
         })
     }
 
+    private fun isLoopbackHost(header: String?): Boolean {
+        val name = header?.substringBeforeLast(':')?.lowercase() ?: return false
+        return name == host || name in LOOPBACK_NAMES
+    }
+
     private companion object {
+        val LOOPBACK_NAMES = setOf("127.0.0.1", "localhost", "[::1]")
         const val PATH_PREFIX = "/stream/"
         const val BUFFER_SIZE = 64 * 1024
     }

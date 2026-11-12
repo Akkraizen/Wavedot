@@ -9,6 +9,13 @@ import space.wavedot.core.model.ArtistRef
 import space.wavedot.core.model.Artwork
 import space.wavedot.core.model.Track
 import java.io.File
+import java.io.IOException
+import java.nio.file.FileVisitOption
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
 import java.security.MessageDigest
 import kotlin.time.Duration.Companion.seconds
 
@@ -23,9 +30,27 @@ class FileSystemTrackScanner(
     override suspend fun scan(): List<LocalTrack> = withContext(Dispatchers.IO) {
         roots()
             .filter { it.isDirectory }
-            .flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension.lowercase() in EXTENSIONS }.toList() }
+            .flatMap(::audioFiles)
             .distinctBy { it.canonicalPath }
             .map(::readTrack)
+    }
+
+    private fun audioFiles(root: File): List<File> {
+        val found = mutableListOf<File>()
+        Files.walkFileTree(
+            root.toPath(),
+            setOf(FileVisitOption.FOLLOW_LINKS),
+            MAX_DEPTH,
+            object : SimpleFileVisitor<Path>() {
+                override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                    if (attrs.isRegularFile && file.toFile().extension.lowercase() in EXTENSIONS) found += file.toFile()
+                    return FileVisitResult.CONTINUE
+                }
+
+                override fun visitFileFailed(file: Path, exc: IOException): FileVisitResult = FileVisitResult.CONTINUE
+            },
+        )
+        return found
     }
 
     private fun readTrack(file: File): LocalTrack {
@@ -68,6 +93,7 @@ class FileSystemTrackScanner(
         MessageDigest.getInstance("SHA-1").digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
 
     companion object {
+        private const val MAX_DEPTH = 32
         private val COVER_NAMES = listOf("cover.jpg", "cover.png", "folder.jpg", "folder.png", "front.jpg", "front.png")
         private val MIME_TYPES = mapOf(
             "mp3" to "audio/mpeg",

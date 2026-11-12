@@ -60,7 +60,8 @@ class FfmpegAudioEngine(
         try {
             val uri = source.toPlayableUri(proxy)
             if (source is StreamSource.Custom) publishedUrl = uri.value
-            val decoder = withContext(decodeThread) { FfmpegDecoder.open(uri.value, uri.headers) }
+            val decoder = withContext(decodeThread) { FfmpegDecoder.open(uri.value, uri.headers, input = if (uri.isLocal) FfmpegInput.LOCAL_FILE else FfmpegInput.NETWORK)
+            }
             if (startPosition > Duration.ZERO) withContext(decodeThread) { decoder.seek(startPosition) }
             val out = outputFactory.create().apply { open(decoder.output) }
             output = out

@@ -8,6 +8,7 @@ import space.wavedot.core.domain.sync.SyncRecord
 import space.wavedot.core.model.AlbumRef
 import space.wavedot.core.model.ArtistRef
 import space.wavedot.core.model.Artwork
+import space.wavedot.core.model.ArtworkReference
 import space.wavedot.core.model.MediaId
 import space.wavedot.core.model.Track
 import space.wavedot.protocol.core.ProtocolJson
@@ -31,14 +32,16 @@ internal object SyncRecordMapper {
     }
 
     fun fromDto(dto: ChangeDto): SyncRecord? = when (dto.collection) {
-        SyncCollections.FAVORITES -> {
-            val id = MediaId.parse(dto.key)
-            val favorite = if (dto.deleted) null else dto.payload
-                ?.let { ProtocolJson.decodeFromJsonElement<FavoritePayloadDto>(it) }
-                ?.toFavorite(id)
-            SyncRecord.Favorite(FavoriteChange(id, favorite, dto.updatedAt))
-        }
+        SyncCollections.FAVORITES -> runCatching { favoriteFromDto(dto) }.getOrNull()
         else -> null
+    }
+
+    private fun favoriteFromDto(dto: ChangeDto): SyncRecord.Favorite {
+        val id = MediaId.parse(dto.key)
+        val favorite = if (dto.deleted) null else dto.payload
+            ?.let { ProtocolJson.decodeFromJsonElement<FavoritePayloadDto>(it) }
+            ?.toFavorite(id)
+        return SyncRecord.Favorite(FavoriteChange(id, favorite, dto.updatedAt))
     }
 
     private fun Favorite.toPayload() = FavoritePayloadDto(
@@ -46,7 +49,7 @@ internal object SyncRecordMapper {
         artists = track.artists.map { it.name },
         album = track.album?.title,
         durationMs = track.duration?.inWholeMilliseconds,
-        artworkUrl = track.artwork?.url,
+        artworkUrl = track.artwork?.url?.takeIf(::isPortableArtwork),
         addedAt = addedAt,
     )
 
@@ -57,8 +60,11 @@ internal object SyncRecordMapper {
             artists = artists.map { ArtistRef(null, it) },
             album = album?.let { AlbumRef(null, it) },
             duration = durationMs?.milliseconds,
-            artwork = artworkUrl?.let(::Artwork),
+            artwork = artworkUrl?.takeIf(::isPortableArtwork)?.let(::Artwork),
         ),
         addedAt = addedAt,
     )
+
+    private fun isPortableArtwork(url: String): Boolean =
+        ArtworkReference.matches(url) || url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true)
 }

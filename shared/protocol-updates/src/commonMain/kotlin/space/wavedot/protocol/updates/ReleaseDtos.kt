@@ -20,6 +20,7 @@ data class ArtifactDto(
     val size: Long,
     val sha256: String,
     val url: String,
+    val signature: String? = null,
 )
 
 @Serializable

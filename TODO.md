@@ -14,9 +14,8 @@
 - [ ] **Internet Archive** and **Jamendo**: free catalogs.
 - [ ] Yandex Music: albums, artists, playlists, "My Wave" radio, lyrics.
 - [ ] Yandex Music: OAuth device flow in Settings instead of pasting a token.
-- [x] Plugin UI extensions: screens, library sections, track actions, settings pages and accent colors, described declaratively and drawn by the app.
-- [ ] Plugin UI: more node types (grids, images, progress, links that open the browser), navigation inside a plugin screen, actions in the search screen.
-- [ ] Load plugins at runtime from JARs (desktop: `ServiceLoader` and an isolated class loader), with signature checks.
+- [ ] Load plugins at runtime from JARs (desktop: `ServiceLoader` and an isolated class loader), with signature checks. Needs process-level isolation or a restricted API and a per-plugin network policy first (see the trust model in docs/PLUGINS.md).
+- [ ] Subsonic: OpenSubsonic API key authentication instead of the salted password token.
 
 ## Library and core features
 
@@ -59,16 +58,21 @@
 
 ## Sync and accounts (hub)
 
-- [ ] Pair additional devices to an existing account (pairing code or QR).
+- [ ] Pair additional devices to an existing account (pairing code or QR). Until then an account has exactly one device.
+- [x] List and revoke devices, delete the account.
 - [ ] Use the WebSocket revision events on the client to trigger sync automatically.
 - [ ] Settings sync (`settings` collection) and playlist sync (`playlists` collection).
 - [ ] Optional end-to-end encryption of payloads.
-- [ ] Rate limiting and an audit log.
+- [x] Rate limiting, request size limits and per-account quotas.
+- [ ] An audit log.
+- [ ] Purge tombstones that every device has already pulled.
+- [ ] Device token rotation and expiry of devices that have not been seen for a long time.
 - [ ] Testcontainers-based PostgreSQL tests next to the H2 ones.
 
 ## Updates
 
-- [ ] Sign artifacts (Ed25519) and verify signatures in the client in addition to SHA-256.
+- [x] Sign artifacts (ECDSA P-256, available on every supported Android version without extra dependencies) and verify signatures in the client in addition to SHA-256.
+- [ ] Signing key rotation policy and a second trusted key in release builds.
 - [ ] Install flow: Android package installer, Windows MSI/EXE handoff, Linux packages.
 - [ ] S3-compatible `ArtifactStorage` implementation.
 - [ ] Release notes rendering and a "what's new" screen.
@@ -77,11 +81,15 @@
 ## Platforms and security
 
 - [ ] iOS target (Compose Multiplatform, AVAudioEngine-based `AudioEngine`, MediaPlayer integration).
-- [ ] Secure secret storage: Windows DPAPI or Credential Manager, Android Keystore, libsecret, macOS Keychain.
+- [x] Secure secret storage on Android (Keystore) and Windows (DPAPI).
+- [ ] Secure secret storage on Linux (libsecret) and macOS (Keychain); today the file is only restricted to its owner.
 - [ ] Desktop installer polish: icons, file associations, auto-start option.
 
 ## Engineering
 
-- [ ] CI: build, tests, Android lint, desktop packaging.
-- [ ] Static analysis (detekt, ktlint) and dependency update checks.
+- [x] CI: layer check, server and client tests, Android debug build, Windows secret storage tests.
+- [ ] CI: Android lint, desktop packaging.
+- [x] Dependency update checks (Dependabot) and a pinned Gradle distribution checksum.
+- [ ] Static analysis (detekt, ktlint).
+- [ ] Gradle dependency verification metadata, and container images and GitHub Actions pinned by digest.
 - [ ] UI tests for the Compose screens.

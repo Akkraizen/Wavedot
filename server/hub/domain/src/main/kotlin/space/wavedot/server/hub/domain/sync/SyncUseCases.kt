@@ -4,6 +4,7 @@ import space.wavedot.server.hub.domain.account.AccountRepository
 import space.wavedot.server.hub.domain.account.DeviceSession
 import space.wavedot.server.kernel.TransactionRunner
 import space.wavedot.server.kernel.validate
+import java.time.Clock
 
 data class PushResult(
     val revision: Long,
@@ -16,33 +17,58 @@ class PushChanges(
     private val collections: CollectionRegistry,
     private val transactions: TransactionRunner,
     private val notifier: ChangeNotifier,
-    private val maxBatch: Int = 500,
+    private val clock: Clock,
+    private val limits: SyncLimits = SyncLimits(),
 ) {
+    private data class Outcome(val before: Long, val after: Long, val rejected: List<RejectedChange>)
+
     suspend operator fun invoke(session: DeviceSession, changes: List<Change>): PushResult {
-        validate(changes.size <= maxBatch) { "At most $maxBatch changes per request" }
+        validate(changes.size <= limits.maxBatch) { "At most ${limits.maxBatch} changes per request" }
+        val latestAllowed = clock.millis() + limits.maxClockSkew.toMillis()
+        val outcome = transactions.inTransaction { apply(session, changes, latestAllowed) }
+        if (outcome.after != outcome.before) notifier.revisionChanged(session.accountId, outcome.after)
+        return PushResult(outcome.after, outcome.rejected)
+    }
+
+    private suspend fun apply(session: DeviceSession, changes: List<Change>, latestAllowed: Long): Outcome {
+        val before = accounts.lockRevision(session.accountId)
         val rejected = mutableListOf<RejectedChange>()
-        var lastRevision = 0L
-        var applied = 0
-        transactions.inTransaction {
-            for (change in changes) {
-                val policy = collections.policyFor(change.collection)
-                val reason = if (policy == null) "Unknown collection ${change.collection}" else policy.reject(change)
-                if (reason != null) {
-                    rejected += RejectedChange(change, reason)
-                    continue
-                }
-                val existing = library.find(session.accountId, change.collection, change.key)
-                if (existing != null && existing.change.updatedAt > change.updatedAt) {
-                    rejected += RejectedChange(change, "A newer change already exists")
-                    continue
-                }
-                lastRevision = accounts.nextRevision(session.accountId)
-                library.upsert(session.accountId, StoredChange(lastRevision, session.deviceId, change))
-                applied++
+        var revision = before
+        var items: Long? = null
+        for (change in changes) {
+            val reason = rejectionReason(change, latestAllowed)
+            if (reason != null) {
+                rejected += RejectedChange(change, reason)
+                continue
             }
+            val existing = library.find(session.accountId, change.collection, change.key)
+            if (existing != null && existing.change.updatedAt > change.updatedAt) {
+                rejected += RejectedChange(change, "A newer change already exists")
+                continue
+            }
+            if (existing == null) {
+                val count = items ?: library.count(session.accountId)
+                if (count >= limits.maxItemsPerAccount) {
+                    items = count
+                    rejected += RejectedChange(change, "The account holds the maximum of ${limits.maxItemsPerAccount} items")
+                    continue
+                }
+                items = count + 1
+            }
+            revision++
+            library.upsert(session.accountId, StoredChange(revision, session.deviceId, change))
         }
-        if (applied > 0) notifier.revisionChanged(session.accountId, lastRevision)
-        return PushResult(lastRevision, rejected)
+        if (revision != before) accounts.saveRevision(session.accountId, revision)
+        return Outcome(before, revision, rejected)
+    }
+
+    private fun rejectionReason(change: Change, latestAllowed: Long): String? {
+        val policy = collections.policyFor(change.collection) ?: return "Unknown collection ${change.collection}"
+        return policy.reject(change) ?: when {
+            change.updatedAt < 0 -> "Timestamp must not be negative"
+            change.updatedAt > latestAllowed -> "Timestamp is too far in the future"
+            else -> null
+        }
     }
 }
 

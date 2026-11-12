@@ -1,6 +1,7 @@
 package space.wavedot.infra.playback.desktop
 
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext
+import space.wavedot.core.common.withoutUrlSecrets
 import org.bytedeco.ffmpeg.avcodec.AVPacket
 import org.bytedeco.ffmpeg.avformat.AVFormatContext
 import org.bytedeco.ffmpeg.avutil.AVChannelLayout
@@ -52,6 +53,11 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.microseconds
 
 class FfmpegException(message: String) : RuntimeException(message)
+
+enum class FfmpegInput(val protocols: String) {
+    LOCAL_FILE("file"),
+    NETWORK("http,https,tls,tcp,crypto"),
+}
 
 class FfmpegDecoder private constructor(
     private val format: AVFormatContext,
@@ -165,19 +171,26 @@ class FfmpegDecoder private constructor(
             av_log_set_level(AV_LOG_ERROR)
         }
 
-        fun open(uri: String, headers: Map<String, String> = emptyMap(), maxChannels: Int = 2): FfmpegDecoder {
+        fun open(
+            uri: String,
+            headers: Map<String, String> = emptyMap(),
+            maxChannels: Int = 2,
+            input: FfmpegInput = FfmpegInput.LOCAL_FILE,
+        ): FfmpegDecoder {
             val format = AVFormatContext(null)
             val options = AVDictionary(null)
-            if (headers.isNotEmpty()) {
-                av_dict_set(options, "headers", headers.entries.joinToString("") { "${it.key}: ${it.value}\r\n" }, 0)
+            av_dict_set(options, "protocol_whitelist", input.protocols, 0)
+            val safeHeaders = headers.filterNot { (name, value) -> (name + value).any { it == '\r' || it == '\n' } }
+            if (safeHeaders.isNotEmpty()) {
+                av_dict_set(options, "headers", safeHeaders.entries.joinToString("") { "${it.key}: ${it.value}\r\n" }, 0)
             }
             val opened = avformat_open_input(format, uri, null, options)
             av_dict_free(options)
-            if (opened < 0) throw FfmpegException("Cannot open $uri: ${errorText(opened)}")
+            if (opened < 0) throw FfmpegException("Cannot open ${uri.withoutUrlSecrets()}: ${errorText(opened)}")
             try {
                 check(avformat_find_stream_info(format, null as PointerPointer<*>?) >= 0) { "No stream info" }
                 val streamIndex = av_find_best_stream(format, AVMEDIA_TYPE_AUDIO, -1, -1, null as PointerPointer<*>?, 0)
-                if (streamIndex < 0) throw FfmpegException("No audio stream in $uri")
+                if (streamIndex < 0) throw FfmpegException("No audio stream in ${uri.withoutUrlSecrets()}")
                 val parameters = format.streams(streamIndex).codecpar()
                 val decoder = avcodec_find_decoder(parameters.codec_id())
                     ?: throw FfmpegException("No decoder for codec ${parameters.codec_id()}")

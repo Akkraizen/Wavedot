@@ -11,6 +11,9 @@ dependencies {
     implementation(libs.ktor.server.status.pages)
     implementation(libs.ktor.server.call.logging)
     implementation(libs.ktor.server.call.id)
+    api(libs.ktor.server.rate.limit)
+    api(libs.ktor.server.body.limit)
+    implementation(libs.ktor.server.forwarded.header)
     implementation(libs.ktor.serialization.json)
     api(libs.logback)
 }

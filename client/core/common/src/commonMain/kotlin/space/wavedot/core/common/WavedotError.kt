@@ -17,6 +17,8 @@ sealed interface WavedotError {
 
     data class Network(override val message: String) : WavedotError
 
+    data class Invalid(override val message: String) : WavedotError
+
     data class Unknown(override val message: String) : WavedotError
 }
 

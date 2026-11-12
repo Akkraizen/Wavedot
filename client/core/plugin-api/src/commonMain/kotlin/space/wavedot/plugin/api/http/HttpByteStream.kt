@@ -19,10 +19,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import space.wavedot.core.common.WavedotError
 import space.wavedot.core.common.WavedotException
+import space.wavedot.core.common.withoutUrlSecrets
 import space.wavedot.core.model.stream.ByteStream
 
 class HttpStatusException(val status: HttpStatusCode, url: String) :
-    Exception("HTTP ${status.value} for $url")
+    Exception("HTTP ${status.value} for ${url.withoutUrlSecrets()}")
 
 suspend fun HttpClient.openByteStream(
     url: String,

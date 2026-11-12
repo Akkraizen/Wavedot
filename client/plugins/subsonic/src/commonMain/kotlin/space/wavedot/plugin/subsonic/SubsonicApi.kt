@@ -13,7 +13,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import space.wavedot.core.common.WavedotError
 import space.wavedot.core.common.WavedotException
-import kotlin.random.Random
 
 internal class SubsonicApi(
     private val http: HttpClient,
@@ -111,6 +110,9 @@ internal class SubsonicApi(
         private val NONE = 0 to 0
         private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
-        private fun randomSalt(): String = Random.nextBytes(8).joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }
+        private const val SALT_BYTES = 16
+
+        private fun randomSalt(): String =
+            secureRandomBytes(SALT_BYTES).joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }
     }
 }

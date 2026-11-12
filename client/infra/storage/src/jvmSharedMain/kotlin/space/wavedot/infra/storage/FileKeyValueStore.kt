@@ -11,11 +11,18 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import space.wavedot.core.common.KeyValueStore
 import java.io.File
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.PosixFilePermission
 import java.util.Properties
 
-class FileKeyValueStore(private val file: File) : KeyValueStore {
+class FileKeyValueStore(
+    private val file: File,
+    private val ownerOnly: Boolean = false,
+) : KeyValueStore {
     private val mutex = Mutex()
-    private val state = MutableStateFlow(readFile())
+    private val state = MutableStateFlow(readFile().also { if (ownerOnly && file.exists()) restrictToOwner(file) })
 
     override suspend fun get(key: String): String? = state.value[key]
 
@@ -53,10 +60,26 @@ class FileKeyValueStore(private val file: File) : KeyValueStore {
         val properties = Properties()
         values.forEach { (k, v) -> properties.setProperty(k, v) }
         val temp = File(file.parentFile, "${file.name}.tmp")
+        temp.delete()
+        temp.createNewFile()
+        if (ownerOnly) restrictToOwner(temp)
         temp.outputStream().use { properties.store(it, null) }
-        if (!temp.renameTo(file)) {
-            file.delete()
-            check(temp.renameTo(file)) { "Could not replace ${file.path}" }
+        try {
+            Files.move(temp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+    }
+
+    private fun restrictToOwner(target: File) {
+        val path = target.toPath()
+        if ("posix" in path.fileSystem.supportedFileAttributeViews()) {
+            Files.setPosixFilePermissions(path, setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE))
+        } else {
+            target.setReadable(false, false)
+            target.setReadable(true, true)
+            target.setWritable(false, false)
+            target.setWritable(true, true)
         }
     }
 }

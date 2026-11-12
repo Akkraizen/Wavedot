@@ -1,5 +1,6 @@
 package space.wavedot.core.testing
 
+import space.wavedot.core.contract.ArtworkResolver
 import space.wavedot.core.contract.Catalog
 import space.wavedot.core.contract.EntityProvider
 import space.wavedot.core.contract.LyricsProvider
@@ -30,9 +31,11 @@ class FakeMediaSource(
     kind: SourceKind = SourceKind.STREAMING,
     private val searchable: Boolean = true,
     override val lyrics: LyricsProvider? = null,
+    override val artwork: ArtworkResolver? = null,
 ) : MediaSource {
     val tracks: MutableList<Track> = tracks.toMutableList()
     val liked: MutableList<Track> = liked.toMutableList()
+    var streamOverride: StreamSource? = null
 
     override val descriptor = SourceDescriptor(id, "Fake ${id.value}", kind)
 
@@ -91,7 +94,7 @@ class FakeMediaSource(
         override val supportedQualities: Set<AudioQuality> = setOf(AudioQuality.LOW, AudioQuality.HIGH)
 
         override suspend fun resolve(trackId: MediaId, quality: AudioQuality): StreamSource =
-            StreamSource.Remote("https://fake.test/${trackId.key}?q=${quality.name}")
+            streamOverride ?: StreamSource.Remote("https://fake.test/${trackId.key}?q=${quality.name}")
     }
 
     override val library: RemoteLibrary? = if (!withLibrary) null else object : RemoteLibrary {

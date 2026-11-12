@@ -10,19 +10,28 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.authenticate
 import io.ktor.server.plugins.autohead.AutoHeadResponse
+import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.ktor.server.plugins.partialcontent.PartialContent
+import io.ktor.server.plugins.ratelimit.RateLimit
+import io.ktor.server.plugins.ratelimit.RateLimitName
+import io.ktor.server.plugins.ratelimit.rateLimit
+import io.ktor.server.request.path
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
+import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.utils.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import space.wavedot.protocol.core.ArchDto
 import space.wavedot.protocol.core.PlatformDto
 import space.wavedot.protocol.core.ProtocolJson
+import space.wavedot.protocol.core.fromWireName
 import space.wavedot.protocol.updates.ArtifactDto
 import space.wavedot.protocol.updates.ChannelDto
 import space.wavedot.protocol.updates.PublishReleaseRequest
@@ -31,13 +40,12 @@ import space.wavedot.protocol.updates.ReleaseDto
 import space.wavedot.protocol.updates.UpdatesRoutes
 import space.wavedot.server.kernel.AppError
 import space.wavedot.server.ktor.bearerToken
-import space.wavedot.server.updates.domain.Arch
+import space.wavedot.server.ktor.perRemoteHost
+import space.wavedot.server.updates.domain.ArtifactLocation
 import space.wavedot.server.updates.domain.ArtifactUpload
-import space.wavedot.server.updates.domain.Channel
-import space.wavedot.server.updates.domain.Platform
+import space.wavedot.server.updates.domain.GetArtifact
 import space.wavedot.server.updates.domain.PublishCommand
 import space.wavedot.server.updates.domain.PublishRelease
-import space.wavedot.server.updates.domain.ReleaseRepository
 import space.wavedot.server.updates.domain.ResolveLatest
 import space.wavedot.server.updates.domain.SemVer
 import space.wavedot.server.updates.domain.UpdateQuery
@@ -45,6 +53,7 @@ import space.wavedot.server.updates.domain.YankRelease
 import java.io.File
 import java.nio.file.Files
 import java.security.MessageDigest
+import kotlin.time.Duration.Companion.minutes
 
 data class AdminPrincipal(val name: String)
 
@@ -52,24 +61,48 @@ class UpdatesUseCases(
     val resolveLatest: ResolveLatest,
     val publish: PublishRelease,
     val yank: YankRelease,
-    val releases: ReleaseRepository,
-    val artifactFile: (String) -> File,
+    val getArtifact: GetArtifact,
     val adminToken: String,
 )
 
-const val ADMIN_AUTH = "admin"
+data class UpdatesApiLimits(
+    val publicRequestsPerMinute: Int = 120,
+    val adminRequestsPerMinute: Int = 20,
+    val maxUploadBytes: Long = 1024L * 1024 * 1024,
+    val maxRequestBytes: Long = 64 * 1024,
+)
 
-fun Application.updatesApi(useCases: UpdatesUseCases) {
+const val ADMIN_AUTH = "admin"
+const val MIN_ADMIN_TOKEN_LENGTH = 32
+
+private val PUBLIC_LIMIT = RateLimitName("public")
+private val ADMIN_LIMIT = RateLimitName("admin")
+
+fun Application.updatesApi(useCases: UpdatesUseCases, limits: UpdatesApiLimits = UpdatesApiLimits()) {
+    require(useCases.adminToken.isBlank() || useCases.adminToken.length >= MIN_ADMIN_TOKEN_LENGTH) {
+        "The admin token must be at least $MIN_ADMIN_TOKEN_LENGTH characters long"
+    }
     install(PartialContent)
     install(AutoHeadResponse)
+    install(RequestBodyLimit) {
+        bodyLimit { call ->
+            if (call.request.path() == UpdatesRoutes.ADMIN_RELEASES) limits.maxUploadBytes else limits.maxRequestBytes
+        }
+    }
+    install(RateLimit) {
+        perRemoteHost(PUBLIC_LIMIT, limits.publicRequestsPerMinute, 1.minutes)
+        perRemoteHost(ADMIN_LIMIT, limits.adminRequestsPerMinute, 1.minutes)
+    }
     install(Authentication) {
         bearerToken(ADMIN_AUTH) { token ->
             if (useCases.adminToken.isNotBlank() && constantTimeEquals(token, useCases.adminToken)) AdminPrincipal("admin") else null
         }
     }
     routing {
-        publicRoutes(useCases)
-        authenticate(ADMIN_AUTH) { adminRoutes(useCases) }
+        rateLimit(PUBLIC_LIMIT) { publicRoutes(useCases) }
+        rateLimit(ADMIN_LIMIT) {
+            authenticate(ADMIN_AUTH) { adminRoutes(useCases, limits) }
+        }
     }
 }
 
@@ -101,50 +134,74 @@ private fun Route.publicRoutes(useCases: UpdatesUseCases) {
                     size = artifact.size,
                     sha256 = artifact.sha256,
                     url = "${UpdatesRoutes.ARTIFACTS}/${release.id}/${artifact.fileName}",
+                    signature = artifact.signature,
                 ),
             ),
         )
     }
     get("${UpdatesRoutes.ARTIFACTS}/{releaseId}/{fileName}") {
-        val releaseId = call.parameters["releaseId"]!!
-        val fileName = call.parameters["fileName"]!!
-        val release = useCases.releases.findById(releaseId) ?: throw AppError.NotFound("Release")
-        val artifact = release.artifacts.firstOrNull { it.fileName == fileName } ?: throw AppError.NotFound("Artifact")
-        val file = useCases.artifactFile(artifact.storageKey)
-        if (!file.isFile) throw AppError.NotFound("Artifact file")
-        call.response.header(
-            HttpHeaders.ContentDisposition,
-            ContentDisposition.Attachment.withParameter(ContentDisposition.Parameters.FileName, artifact.fileName).toString(),
-        )
-        call.respondFile(file)
+        val download = useCases.getArtifact(call.parameters["releaseId"]!!, call.parameters["fileName"]!!)
+        when (val location = download.location) {
+            is ArtifactLocation.Remote -> call.respondRedirect(location.url)
+            is ArtifactLocation.LocalFile -> {
+                call.response.header(
+                    HttpHeaders.ContentDisposition,
+                    ContentDisposition.Attachment
+                        .withParameter(ContentDisposition.Parameters.FileName, download.artifact.fileName)
+                        .toString(),
+                )
+                call.respondFile(location.path.toFile())
+            }
+        }
     }
 }
 
-private fun Route.adminRoutes(useCases: UpdatesUseCases) {
+private class ReceivedUpload(
+    val platform: String,
+    val arch: String,
+    val fileName: String,
+    val file: File,
+)
+
+private fun Route.adminRoutes(useCases: UpdatesUseCases, limits: UpdatesApiLimits) {
     post(UpdatesRoutes.ADMIN_RELEASES) {
         var metadata: PublishReleaseRequest? = null
-        val uploads = mutableListOf<ArtifactUpload>()
+        val received = mutableListOf<ReceivedUpload>()
+        val signatures = mutableMapOf<String, String>()
         val tempFiles = mutableListOf<File>()
+        val streams = mutableListOf<java.io.InputStream>()
         try {
-            call.receiveMultipart(formFieldLimit = MAX_UPLOAD_BYTES).forEachPart { part ->
+            call.receiveMultipart(formFieldLimit = limits.maxUploadBytes).forEachPart { part ->
+                val name = part.name.orEmpty()
                 when {
-                    part is PartData.FormItem && part.name == "metadata" ->
+                    part is PartData.FormItem && name == METADATA_PART ->
                         metadata = ProtocolJson.decodeFromString<PublishReleaseRequest>(part.value)
-                    part is PartData.FileItem && part.name?.startsWith("artifact:") == true -> {
-                        val (_, platform, arch) = part.name!!.split(':').also { if (it.size != 3) throw AppError.Validation("Use artifact:<platform>:<arch>") }
-                        val temp = Files.createTempFile("upload", ".bin").toFile().also(tempFiles::add)
-                        part.provider().toInputStream().use { input -> temp.outputStream().use(input::copyTo) }
-                        uploads += ArtifactUpload(
-                            platform = decode<PlatformDto>(platform).toDomain(),
-                            arch = decode<ArchDto>(arch).toDomain(),
-                            fileName = part.originalFileName ?: throw AppError.Validation("File name is required"),
-                            content = temp.inputStream(),
-                        )
+                    part is PartData.FormItem && name.startsWith(SIGNATURE_PREFIX) ->
+                        signatures[name.removePrefix(SIGNATURE_PREFIX)] = part.value
+                    part is PartData.FileItem && name.startsWith(ARTIFACT_PREFIX) -> {
+                        val target = name.removePrefix(ARTIFACT_PREFIX).split(':')
+                        if (target.size != 2) throw AppError.Validation("Use artifact:<platform>:<arch>")
+                        val fileName = part.originalFileName ?: throw AppError.Validation("File name is required")
+                        val temp = withContext(Dispatchers.IO) {
+                            Files.createTempFile("upload", ".bin").toFile().also(tempFiles::add).also { file ->
+                                part.provider().toInputStream().use { input -> file.outputStream().use(input::copyTo) }
+                            }
+                        }
+                        received += ReceivedUpload(target[0], target[1], fileName, temp)
                     }
                 }
                 part.dispose()
             }
             val request = metadata ?: throw AppError.Validation("Missing metadata part")
+            val uploads = received.map { upload ->
+                ArtifactUpload(
+                    platform = decode<PlatformDto>(upload.platform).toDomain(),
+                    arch = decode<ArchDto>(upload.arch).toDomain(),
+                    fileName = upload.fileName,
+                    content = upload.file.inputStream().also(streams::add),
+                    signature = signatures["${upload.platform}:${upload.arch}"],
+                )
+            }
             val release = useCases.publish(
                 PublishCommand(request.version, request.channel.toDomain(), request.notes, request.mandatory, request.rolloutPercent, uploads),
             )
@@ -153,7 +210,7 @@ private fun Route.adminRoutes(useCases: UpdatesUseCases) {
                 PublishedReleaseDto(release.id, release.version.toString(), release.channel.toDto(), release.artifacts.map { it.fileName }),
             )
         } finally {
-            uploads.forEach { runCatching { it.content.close() } }
+            streams.forEach { runCatching { it.close() } }
             tempFiles.forEach(File::delete)
         }
     }
@@ -163,20 +220,15 @@ private fun Route.adminRoutes(useCases: UpdatesUseCases) {
     }
 }
 
-private const val MAX_UPLOAD_BYTES = 1024L * 1024 * 1024
+private const val METADATA_PART = "metadata"
+private const val ARTIFACT_PREFIX = "artifact:"
+private const val SIGNATURE_PREFIX = "signature:"
 
 private fun io.ktor.http.Parameters.require(name: String): String =
     this[name] ?: throw AppError.Validation("Missing query parameter '$name'")
 
 private inline fun <reified T> decode(wire: String): T =
-    runCatching { ProtocolJson.decodeFromString<T>("\"$wire\"") }.getOrElse { throw AppError.Validation("Unknown value '$wire'") }
-
-private fun PlatformDto.toDomain() = Platform.valueOf(name)
-private fun ArchDto.toDomain() = Arch.valueOf(name)
-private fun ChannelDto.toDomain() = Channel.valueOf(name)
-private fun Platform.toDto() = PlatformDto.valueOf(name)
-private fun Arch.toDto() = ArchDto.valueOf(name)
-private fun Channel.toDto() = ChannelDto.valueOf(name)
+    fromWireName<T>(wire) ?: throw AppError.Validation("Unknown value '${wire.take(32)}'")
 
 private fun constantTimeEquals(a: String, b: String): Boolean =
     MessageDigest.isEqual(a.toByteArray(), b.toByteArray())
